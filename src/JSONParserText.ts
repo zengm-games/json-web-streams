@@ -52,25 +52,20 @@ export type Stack = {
 type OnValue = (value: Value, stak: Stack) => void;
 
 class JSONParserText {
-	tokenizerState: TokenizerState;
-	state: Token | ParserState;
+	tokenizerState: TokenizerState = "START";
+	state: Token | ParserState = "VALUE";
 	mode: Mode | undefined;
-	stack: Stack;
+	stack: Stack = [];
 	string: string | undefined;
 	key: Key | undefined;
 	value: Value;
-	position: number;
+	position = 0;
 	onValue: OnValue;
 	unicode: string | undefined;
 	highSurrogate: number | undefined;
+	seenRootObject = false;
 
 	constructor(onValue: OnValue) {
-		this.tokenizerState = "START";
-		this.state = "VALUE";
-		this.stack = [];
-
-		this.position = 0;
-
 		this.onValue = onValue;
 	}
 
@@ -350,6 +345,14 @@ class JSONParserText {
 
 	onToken(token: Token, value: Value, i: number) {
 		//console.log('onToken', token, value, this.state)
+		if (this.stack.length === 0) {
+			if (!this.seenRootObject) {
+				this.seenRootObject = true;
+			} else {
+				throw new Error("Extra text after root object");
+			}
+		}
+
 		if (this.state === "VALUE" || this.state === "VALUE_AFTER_COMMA") {
 			if (
 				token === "STRING" ||
