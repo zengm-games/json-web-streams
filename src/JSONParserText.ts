@@ -13,7 +13,7 @@ type Token =
 	| "STRING"
 	| "NUMBER";
 
-type ParserState = "VALUE" | "KEY";
+type ParserState = "VALUE" | "KEY" | "VALUE_AFTER_COMMA" | "KEY_AFTER_COMMA";
 
 type TokenizerState =
 	| "START"
@@ -93,6 +93,7 @@ class JSONParserText {
 	write(text: string) {
 		for (let i = 0, l = text.length; i < l; i++) {
 			const n = text[i]!;
+			// console.log('character', n, this.tokenizerState);
 			if (this.tokenizerState === "START") {
 				if (n === "{") {
 					this.onToken("LEFT_BRACE", "{", i);
@@ -348,7 +349,8 @@ class JSONParserText {
 	}
 
 	onToken(token: Token, value: Value, i: number) {
-		if (this.state === "VALUE") {
+		// console.log('onToken', token, value, this.state)
+		if (this.state === "VALUE" || this.state === "VALUE_AFTER_COMMA") {
 			if (
 				token === "STRING" ||
 				token === "NUMBER" ||
@@ -381,13 +383,13 @@ class JSONParserText {
 				this.mode = "ARRAY";
 				this.state = "VALUE";
 			} else if (token === "RIGHT_BRACE") {
-				if (this.mode === "OBJECT") {
+				if (this.mode === "OBJECT" && this.state !== "VALUE_AFTER_COMMA") {
 					this.pop();
 				} else {
 					return this.parseError(token, value, i);
 				}
 			} else if (token === "RIGHT_BRACKET") {
-				if (this.mode === "ARRAY") {
+				if (this.mode === "ARRAY" && this.state !== "VALUE_AFTER_COMMA") {
 					this.pop();
 				} else {
 					return this.parseError(token, value, i);
@@ -395,11 +397,11 @@ class JSONParserText {
 			} else {
 				return this.parseError(token, value, i);
 			}
-		} else if (this.state === "KEY") {
+		} else if (this.state === "KEY" || this.state === "KEY_AFTER_COMMA") {
 			if (token === "STRING") {
 				this.key = value;
 				this.state = "COLON";
-			} else if (token === "RIGHT_BRACE") {
+			} else if (token === "RIGHT_BRACE" && this.state !== "KEY_AFTER_COMMA") {
 				this.pop();
 			} else {
 				return this.parseError(token, value, i);
@@ -415,9 +417,9 @@ class JSONParserText {
 				if (this.mode === "ARRAY") {
 					// @ts-expect-error
 					this.key++;
-					this.state = "VALUE";
+					this.state = "VALUE_AFTER_COMMA";
 				} else if (this.mode === "OBJECT") {
-					this.state = "KEY";
+					this.state = "KEY_AFTER_COMMA";
 				}
 			} else if (
 				(token === "RIGHT_BRACKET" && this.mode === "ARRAY") ||

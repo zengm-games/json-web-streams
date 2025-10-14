@@ -26,7 +26,7 @@ describe("JSON parsing", async () => {
 		const filename = path.basename(entry);
 		const shouldPass = filename.startsWith("pass");
 
-		if (!filename.includes("fail3.")) {
+		if (!filename.includes("fail4.")) {
 			//continue;
 		}
 
