@@ -45,19 +45,17 @@ You can pass multiple query paths to `JSONParseStream`, in which case they will 
 
 ## Plan
 
-overwrite every value with undefined, or just object/array?
+overwrite every value with undefined, or just object/array? which is faster?
 
 name package "JSON Web Stream" or "JSON Web Streams"
 
-test JSON parser strictness
-
-- https://github.com/nst/JSONTestSuite
-
-Replace `throw new Error` in JSONParserText with built-in error calls
+https://github.com/nst/JSONTestSuite
 
 typescript - queryStrings must have length at least 1, or it's not doing anything
 
 test memory usage (delete values we are not interested in) - can expose parser internals somehow
+
+stringify
 
 ## Future
 

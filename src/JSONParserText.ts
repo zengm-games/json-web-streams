@@ -145,7 +145,12 @@ class JSONParserText {
 				} else if (n === "\\") {
 					this.tokenizerState = "STRING2";
 				} else {
-					// Really should only be if n >= 0x20, anything less is error
+					// Check for control characters that are not valid inside JSON strings
+					const code = n.charCodeAt(0);
+					if (code <= 0x001f || (code >= 0x007f && code <= 0x009f)) {
+						this.charError(n, i);
+					}
+
 					this.string += n;
 				}
 			} else if (this.tokenizerState === "STRING2") {
