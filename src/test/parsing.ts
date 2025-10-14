@@ -24,10 +24,8 @@ const parseWholeJson = async (json: string) => {
 	return firstValue;
 };
 
-describe("JSON parsing", async () => {
-	for await (const entry of glob(
-		path.join(__dirname, "jsonParsing/**/*.json"),
-	)) {
+describe("Parsing", async () => {
+	for await (const entry of glob(path.join(__dirname, "parsing/**/*.json"))) {
 		const filename = path.basename(entry);
 		const shouldPass = filename.startsWith("pass");
 
