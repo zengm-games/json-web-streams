@@ -43,9 +43,9 @@ type Key = string | number;
 type Value = any;
 
 export type Stack = {
-    key: Key | undefined;
-    value: Value | undefined;
-    mode: Mode | undefined;
+	key: Key | undefined;
+	value: Value | undefined;
+	mode: Mode | undefined;
 }[];
 
 type OnValue = (value: Value, stak: Stack) => void;
@@ -321,7 +321,7 @@ class JSONParserText {
 	}
 
 	pop() {
-        const value = this.value;
+		const value = this.value;
 		const parent = this.stack.pop()!;
 		this.value = parent.value;
 		this.key = parent.key;
@@ -336,11 +336,14 @@ class JSONParserText {
 		if (this.mode) {
 			this.state = "COMMA";
 		}
-		this.onValue(value, [...this.stack, {
-            value: this.value,
-            key: this.key,
-            mode: this.mode,
-        }]);
+		this.onValue(value, [
+			...this.stack,
+			{
+				value: this.value,
+				key: this.key,
+				mode: this.mode,
+			},
+		]);
 	}
 
 	onToken(token: Token, value: Value, i: number) {

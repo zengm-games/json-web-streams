@@ -7,7 +7,7 @@ Streaming JSON parser built on top of web streams.
 Imagine you have some JSON like:
 
 ```json
-[{"key": 1}, {"key": 2}, {"key": 3}]
+[{ "key": 1 }, { "key": 2 }, { "key": 3 }]
 ```
 
 You can just `JSON.parse` it and get whatever you want from it. But what if there are so many objects that it becomes very slow to do that, or you even run out of memory?
@@ -20,7 +20,7 @@ import { JSONParseStream } from "@dumbmatter/json-web-streams";
 const response = await fetch("https://example.com/data.json");
 const stream = response.body.pipeThrough(new JSONParseStream([["[*]"]]));
 for await (const [object, index] of stream) {
-    console.log(object);
+	console.log(object);
 }
 
 // Output:
@@ -52,6 +52,7 @@ overwrite every value with undefined, or just object/array?
 name package "JSON Web Stream" or "JSON Web Streams"
 
 test JSON parser strictness
+
 - https://github.com/nst/JSONTestSuite
 
 typescript - queryStrings must have length at least 1, or it's not doing anything
