@@ -45,8 +45,6 @@ You can pass multiple query paths to `JSONParseStream`, in which case they will 
 
 ## Plan
 
-Error if root is not array or object
-
 overwrite every value with undefined, or just object/array?
 
 name package "JSON Web Stream" or "JSON Web Streams"
