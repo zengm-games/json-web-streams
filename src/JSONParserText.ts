@@ -27,8 +27,9 @@ type TokenizerState =
 	| "NULL1"
 	| "NULL2"
 	| "NULL3"
-	| "NUMBER1"
-	| "NUMBER3"
+	| "NUMBER-" // Number startign with negative sign
+	| "NUMBER0" // Number with a leading 0 (either no negative sign, or after negative sign)
+	| "NUMBER" // Any other number
 	| "STRING1"
 	| "STRING2"
 	| "STRING3"
@@ -114,16 +115,17 @@ class JSONParserText {
 					this.tokenizerState = "STRING1";
 				} else if (n === "-") {
 					this.string = "-";
-					this.tokenizerState = "NUMBER1";
+					this.tokenizerState = "NUMBER-";
+				} else if (n === "0") {
+					this.string = n;
+					this.tokenizerState = "NUMBER0";
+				} else if (n >= "1" && n <= "9") {
+					this.string = n;
+					this.tokenizerState = "NUMBER";
+				} else if (n === " " || n === "\t" || n === "\n" || n === "\r") {
+					// whitespace
 				} else {
-					if (n >= "0" && n <= "9") {
-						this.string = n;
-						this.tokenizerState = "NUMBER3";
-					} else if (n === " " || n === "\t" || n === "\n" || n === "\r") {
-						// whitespace
-					} else {
-						return this.charError(n, i);
-					}
+					return this.charError(n, i);
 				}
 			} else if (this.tokenizerState === "STRING1") {
 				if (n === '"') {
@@ -211,11 +213,21 @@ class JSONParserText {
 					this.tokenizerState = "STRING1";
 				}
 			} else if (
-				this.tokenizerState === "NUMBER1" ||
-				this.tokenizerState === "NUMBER3"
+				this.tokenizerState === "NUMBER" ||
+				this.tokenizerState === "NUMBER-" ||
+				this.tokenizerState === "NUMBER0"
 			) {
+				if (this.tokenizerState === "NUMBER0" && n >= "0" && n <= "9") {
+					// The error is the previous characte,r which must be a leading 0
+					return this.charError("0", i - 1);
+				}
+
 				switch (n) {
 					case "0":
+						this.string += n;
+						this.tokenizerState =
+							this.tokenizerState === "NUMBER-" ? "NUMBER0" : "NUMBER";
+						break;
 					case "1":
 					case "2":
 					case "3":
@@ -231,7 +243,7 @@ class JSONParserText {
 					case "+":
 					case "-":
 						this.string += n;
-						this.tokenizerState = "NUMBER3";
+						this.tokenizerState = "NUMBER";
 						break;
 					default: {
 						this.tokenizerState = "START";
