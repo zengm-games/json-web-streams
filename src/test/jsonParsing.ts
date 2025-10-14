@@ -11,7 +11,7 @@ const parseWholeJson = async (json: string) => {
 		},
 	});
 
-	const stream = readableStream.pipeThrough(new JSONParseStream([[]]));
+	const stream = readableStream.pipeThrough(new JSONParseStream(["$"]));
 
 	// With queryPath [] (return root object) it should only emit one chunk, but with invalid JSON there could be more, and we need to read through it all to make sure we see any errors that appear
 	let firstValue;

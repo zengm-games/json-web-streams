@@ -17,6 +17,9 @@
 		"lint:tsc": "tsc",
 		"test": "vitest"
 	},
+	"dependencies": {
+		"jsonpath-rfc9535": "^1.3.0"
+	},
 	"devDependencies": {
 		"@ianvs/prettier-plugin-sort-imports": "^4.7.0",
 		"@types/node": "^24.7.2",

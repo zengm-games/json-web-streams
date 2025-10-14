@@ -1,33 +1,44 @@
 import JSONParserText, { type Stack } from "./JSONParserText.ts";
+import { jsonPathToQueryPath, type QueryPath } from "./jsonPathToQueryPath.ts";
 
-const stackToPath = (stack: Stack) => {
+const stackToQueryPath = (stack: Stack): QueryPath => {
 	return stack.slice(1).map((row) => {
-		if (row.mode === "OBJECT") {
-			return row.key;
+		if (row.mode === "OBJECT" && row.key !== undefined) {
+			// row.key is number | string, but when mode is OBJECT it is always a string, number is for ARRAY
+			const value = row.key as string;
+			return { type: "key", value };
 		}
 		if (row.mode === "ARRAY") {
-			return "[*]";
+			return { type: "array" };
 		}
 
-		throw new Error(`Unexpected mode ${row.mode}`);
+		throw new Error(`Unexpected mode "${row.mode}"`);
 	});
 };
 
+const isEqual = (x: QueryPath[number], y: QueryPath[number] | undefined) => {
+	return (
+		x.type === y?.type && (x.type === "array" || x.value === (y as any).value)
+	);
+};
+
 export class JSONParseStream extends TransformStream {
-	constructor(queryPaths: string[][]) {
+	constructor(jsonPaths: string[]) {
 		let parser: JSONParserText;
+
+		const queryPaths = jsonPaths.map(jsonPathToQueryPath);
 
 		super({
 			start(controller) {
 				parser = new JSONParserText((value, stack) => {
-					const path = stackToPath(stack);
+					const path = stackToQueryPath(stack);
 					// console.log('value', value);
 					// console.log('path', path);
 					// console.log('stack', stack);
 
 					let keep = false;
 					for (const [i, queryPath] of queryPaths.entries()) {
-						if (queryPath.every((x, j) => x === path[j])) {
+						if (queryPath.every((x, j) => isEqual(x, path[j]))) {
 							if (path.length === queryPath.length) {
 								// Exact match of queryPath - emit record, and we don't need to keep it any more for this queryPath
 								controller.enqueue([value, i]);

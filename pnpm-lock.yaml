@@ -7,6 +7,10 @@ settings:
 importers:
 
   .:
+    dependencies:
+      jsonpath-rfc9535:
+        specifier: ^1.3.0
+        version: 1.3.0
     devDependencies:
       '@ianvs/prettier-plugin-sort-imports':
         specifier: ^4.7.0
@@ -599,6 +603,10 @@ packages:
   json-parse-even-better-errors@4.0.0:
     resolution: {integrity: sha512-lR4MXjGNgkJc7tkQ97kb2nuEMnNCyU//XYVH0MKTGcXEiSudQ5MKGKen3C5QubYy0vmq+JGitUg92uuywGEwIA==}
     engines: {node: ^18.17.0 || >=20.5.0}
+
+  jsonpath-rfc9535@1.3.0:
+    resolution: {integrity: sha512-3jFHya7oZ45aDxIIdx+/zQARahHXxFSMWBkcBUldfXpLS9VCXDJyTKt35kQfEXLqh0K3Ixw/9xFnvcDStaxh7Q==}
+    engines: {node: '>=20'}
 
   loupe@3.2.1:
     resolution: {integrity: sha512-CdzqowRJCeLU72bHvWqwRBBlLcMEtIvGrlvef74kMnV2AolS9Y8xUv1I0U/MNAWMhBlKIoyuEgoJ0t/bbwHbLQ==}
@@ -1280,6 +1288,8 @@ snapshots:
   jsesc@3.1.0: {}
 
   json-parse-even-better-errors@4.0.0: {}
+
+  jsonpath-rfc9535@1.3.0: {}
 
   loupe@3.2.1: {}
 

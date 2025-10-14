@@ -10,7 +10,7 @@ const readableStream = new ReadableStream({
 	},
 });
 
-const queryPaths = [["foo", "[*]"], ["foo"], ["bar", "[*]"]];
+const queryPaths = ["$.foo[*]", "$.foo", "$.bar[*]"];
 
 const sink = new WritableStream({
 	write([value, index]) {
