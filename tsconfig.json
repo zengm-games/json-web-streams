@@ -1,0 +1,24 @@
+{
+	"compilerOptions": {
+		// Based on https://www.totaltypescript.com/tsconfig-cheat-sheet
+		"esModuleInterop": true,
+		"skipLibCheck": true,
+		"target": "es2024",
+		"allowJs": true,
+		"resolveJsonModule": true,
+		"moduleDetection": "force",
+		"isolatedModules": true,
+		"verbatimModuleSyntax": true,
+		"forceConsistentCasingInFileNames": true,
+		"allowImportingTsExtensions": true,
+
+		"strict": true,
+		"noUncheckedIndexedAccess": true,
+		"noImplicitOverride": true,
+		"noFallthroughCasesInSwitch": true,
+		"noUnusedLocals": true,
+
+		"module": "preserve",
+		"noEmit": true
+	}
+}
