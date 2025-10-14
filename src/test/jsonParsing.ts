@@ -12,12 +12,11 @@ const parseWholeJson = async (json: string) => {
 	});
 
 	const stream = readableStream.pipeThrough(new JSONParseStream([[]]));
+	const reader = stream.getReader();
 
 	// With queryPath [] (return root object) it should only emit one chunk
-	for await (const [object] of stream) {
-		console.log("here", object);
-		return object;
-	}
+	const { value } = await reader.read();
+	return value[0];
 };
 
 describe("JSON parsing", async () => {
@@ -27,29 +26,35 @@ describe("JSON parsing", async () => {
 		const filename = path.basename(entry);
 		const shouldPass = filename.startsWith("pass");
 
+		if (!filename.includes("fail3.")) {
+			//continue;
+		}
+
 		test(filename, async () => {
 			const json = await readFile(entry, "utf8");
 
-			let object;
+			let error, object;
 			try {
 				object = await parseWholeJson(json);
+			} catch (error2) {
+				error = error2;
+			}
+
+			if (shouldPass && error) {
+				throw new Error("Expected valid JSON, but parsing failed", {
+					cause: error,
+				});
+			} else if (!shouldPass && !error) {
 				if (!shouldPass) {
 					throw new Error("Expected invalid JSON, but parsing succeeded");
 				}
-			} catch (error) {
-				if (shouldPass) {
-					throw new Error("Expected valid JSON, but parsing failed", {
-						cause: error,
-					});
-				}
-
-				// We expected an error and got it - nothing more to do here
-				return;
 			}
 
 			// If we expected a pass, confirm the parsed object matches JSON.parse
-			const object2 = JSON.parse(json);
-			assert.deepStrictEqual(object, object2);
+			if (shouldPass) {
+				const object2 = JSON.parse(json);
+				assert.deepStrictEqual(object, object2);
+			}
 		});
 	}
 });
