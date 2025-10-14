@@ -90,6 +90,16 @@ class JSONParserText {
 		for (let i = 0, l = text.length; i < l; i++) {
 			const n = text[i]!;
 			//console.log('character', n, this.tokenizerState);
+
+			// Handle any non-whitespace after the root object has closed
+			if (
+				this.stack.length === 0 &&
+				this.seenRootObject &&
+				!(n === " " || n === "\t" || n === "\n" || n === "\r")
+			) {
+				return this.charError(n, i);
+			}
+
 			if (this.tokenizerState === "START") {
 				if (n === "{") {
 					this.onToken("LEFT_BRACE", "{", i);
@@ -360,8 +370,6 @@ class JSONParserText {
 		if (this.stack.length === 0) {
 			if (!this.seenRootObject) {
 				this.seenRootObject = true;
-			} else {
-				throw new Error("Extra text after root object");
 			}
 		}
 
@@ -461,7 +469,9 @@ class JSONParserText {
 
 	checkEnd() {
 		if (this.stack.length > 0) {
-			throw new Error("Input ended before closing all arrays/objects");
+			throw new Error(
+				`Unexpected end of input at position ${this.position} in state ${this.state}`,
+			);
 		}
 	}
 }
