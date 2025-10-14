@@ -20,4 +20,4 @@ const sink = new WritableStream({
 
 const transformStream = new JSONParseStream(queryPaths);
 
-readableStream.pipeThrough(transformStream).pipeTo(sink);
+await readableStream.pipeThrough(transformStream).pipeTo(sink);

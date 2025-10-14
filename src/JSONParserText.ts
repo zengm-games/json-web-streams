@@ -44,6 +44,7 @@ type Value = any;
 
 export type Stack = {
 	key: Key | undefined;
+	// oxlint-disable-next-line no-redundant-type-constituents
 	value: Value | undefined;
 	mode: Mode | undefined;
 }[];
