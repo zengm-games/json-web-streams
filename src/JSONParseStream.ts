@@ -22,21 +22,9 @@ export class JSONParseStream extends TransformStream {
 				start(controller) {
 					parser = new JSONParserText((value, stack) => {
 						const path = stackToPath(stack);
-						const pathString = JSON.stringify(path);
 						// console.log('value', value);
 						// console.log('path', path);
 						// console.log('stack', stack);
-
-						const matchTypes = queryPaths.map(queryPath => {
-							if (queryPath.every((x, i) => x === path[i])) {
-								if (path.length === queryPath.length) {
-									return "MATCH";
-								} else {
-									return ""
-								}
-							}
-						});
-
 
 						let keep = false;
 						for (const [i, queryPath] of queryPaths.entries()) {

@@ -51,6 +51,11 @@ overwrite every value with undefined, or just object/array?
 
 name package "JSON Web Stream" or "JSON Web Streams"
 
+test JSON parser strictness
+- https://github.com/nst/JSONTestSuite
+
+typescript - queryStrings must have length at least 1, or it's not doing anything
+
 ## Future
 
 Support wildcard keys of an object, somehow emit the wildcard value or full path as 3rd argument
