@@ -61,11 +61,14 @@ test memory usage (delete values we are not interested in) - can expose parser i
 
 stringify
 
+supprt JSON Lines, json-seq, or just multiple JSON objects, with an option
+
+- remove check for seenRootObject and ignore delimeter, whatever it is. whitespace already automatically gets ignored
+
+what if data comes in binary, do we need TextDecoderStream?
+
 ## Future
 
 Support wildcard keys of an object, somehow emit the wildcard value or full path as 3rd argument
 
-Make queryPaths more like JSONPath https://chatgpt.com/c/68ed9b56-2b98-8330-976f-51b459db49ce
-
-- jsonpath-rfc9535/parser
-- https://github.com/P0lip/nimma/blob/master/src/parser/parser.mjs
+Support validating schema of emitted objects
