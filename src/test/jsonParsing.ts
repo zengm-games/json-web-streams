@@ -12,11 +12,16 @@ const parseWholeJson = async (json: string) => {
 	});
 
 	const stream = readableStream.pipeThrough(new JSONParseStream([[]]));
-	const reader = stream.getReader();
 
-	// With queryPath [] (return root object) it should only emit one chunk
-	const { value } = await reader.read();
-	return value[0];
+	// With queryPath [] (return root object) it should only emit one chunk, but with invalid JSON there could be more, and we need to read through it all to make sure we see any errors that appear
+	let firstValue;
+	for await (const [value] of stream) {
+		if (firstValue === undefined) {
+			firstValue = value;
+		}
+	}
+
+	return firstValue;
 };
 
 describe("JSON parsing", async () => {
