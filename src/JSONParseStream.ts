@@ -64,6 +64,7 @@ export class JSONParseStream extends TransformStream {
 			},
 
 			flush(controller) {
+				parser.checkEnd();
 				controller.terminate();
 			},
 		});

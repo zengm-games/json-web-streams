@@ -443,6 +443,12 @@ class JSONParserText {
 
 		this.onToken("NUMBER", number, i);
 	}
+
+	checkEnd() {
+		if (this.stack.length > 0) {
+			throw new Error("Input ended before closing all arrays/objects");
+		}
+	}
 }
 
 export default JSONParserText;

@@ -55,6 +55,8 @@ test JSON parser strictness
 
 typescript - queryStrings must have length at least 1, or it's not doing anything
 
+test memory usage (delete values we are not interested in) - can expose parser internals somehow
+
 ## Future
 
 Support wildcard keys of an object, somehow emit the wildcard value or full path as 3rd argument
