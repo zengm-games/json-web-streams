@@ -23,6 +23,8 @@ const isEqual = (x: QueryPath[number], y: QueryPath[number] | undefined) => {
 };
 
 export class JSONParseStream extends TransformStream {
+	_parser: JSONParserText;
+
 	constructor(jsonPaths: string[]) {
 		let parser: JSONParserText;
 
@@ -79,5 +81,8 @@ export class JSONParseStream extends TransformStream {
 				controller.terminate();
 			},
 		});
+
+		// We know parser is defined because `start` runs synchronously
+		this._parser = parser!;
 	}
 }
