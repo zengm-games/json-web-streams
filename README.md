@@ -71,10 +71,6 @@ Support validating schema of emitted objects
 
 add example for multiple jsonPaths
 
-github actions CI
-
-- what node versions? See engines in package.json
-
 ## Future
 
 More JSONPath stuff https://www.rfc-editor.org/rfc/rfc9535.html
