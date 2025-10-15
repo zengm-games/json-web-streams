@@ -15,17 +15,19 @@ You can just `JSON.parse` it and get whatever you want from it. But what if it's
 By using this library, you can stream through the JSON object. Here's an example that prints out each object as it is parsed, without ever reading the entire JSON object into memory:
 
 ```js
-import { JSONParseStream } from "json-web-streams"
+import { JSONParseStream } from "json-web-streams";
 
 const response = await fetch("https://example.com/data.json");
 await response.body
-    .pipeThrough(new TextDecoderStream())
-    .pipeThrough(new JSONParseStream(["$[*]"]));
-    .pipeTo(new WritableStream({
-        write([value, index]) {
-            console.log(value);
-        },
-    });
+	.pipeThrough(new TextDecoderStream())
+	.pipeThrough(new JSONParseStream(["$[*]"]))
+	.pipeTo(
+		new WritableStream({
+			write([value, index]) {
+				console.log(value);
+			},
+		}),
+	);
 
 // Output:
 // {"x": 1}
@@ -64,7 +66,7 @@ support JSON Lines, json-seq, or just multiple JSON objects, with an option
 
 emit object rather than array? would be nice to add other props like wildcards, multiIndex
 
-typescript for stream inputs/outputs, including generic for output objects
+typescript generic for output objects/indexes
 
 Support validating schema of emitted objects
 

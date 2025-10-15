@@ -26,7 +26,7 @@ const isEqual = (x: QueryPath[number], y: QueryPath[number] | undefined) => {
 	);
 };
 
-export class JSONParseStream extends TransformStream {
+export class JSONParseStream extends TransformStream<string, [any, number]> {
 	_parser: JSONParserText;
 
 	constructor(jsonPaths: Readonly<JSONPath[]>) {
