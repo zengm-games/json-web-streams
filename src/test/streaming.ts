@@ -58,18 +58,16 @@ describe("Streaming", () => {
 		};
 
 		// This stream emits the whole object ($) so it has to read the whole object into memory at some point
-		const stream = makeReadableStreamFromJson(json).pipeThrough(
-			monkeyPatch(new JSONParseStream(["$"])),
-		);
-		await Array.fromAsync(stream);
+		await makeReadableStreamFromJson(json)
+			.pipeThrough(monkeyPatch(new JSONParseStream(["$"])))
+			.pipeTo(new WritableStream());
 		const maxStackSize0 = maxStackSize;
 
 		// This stream only emits part of the object, so it should use less memory than the previous stream
 		maxStackSize = 0;
-		const stream2 = makeReadableStreamFromJson(json).pipeThrough(
-			monkeyPatch(new JSONParseStream(["$[*].bar[*]"])),
-		);
-		await Array.fromAsync(stream2);
+		await makeReadableStreamFromJson(json)
+			.pipeThrough(monkeyPatch(new JSONParseStream(["$[*].bar[*]"])))
+			.pipeTo(new WritableStream());
 		const maxStackSize1 = maxStackSize;
 
 		// The first stream should use more memory than the second
