@@ -72,8 +72,6 @@ Support validating schema of emitted objects
 
 add example for multiple jsonPaths
 
-Do I need to structuredClone value on emit? Consider nested objects, confusing if they are linked
-
 ## Future
 
 More JSONPath stuff https://www.rfc-editor.org/rfc/rfc9535.html

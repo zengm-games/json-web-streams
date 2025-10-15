@@ -53,7 +53,8 @@ export class JSONParseStream extends TransformStream<
 						if (queryPath.every((x, j) => isEqual(x, path[j]))) {
 							if (path.length === queryPath.length) {
 								// Exact match of queryPath - emit record, and we don't need to keep it any more for this queryPath
-								controller.enqueue({ value, index: i });
+								// structuredClone is needed in case this object is emitted elsewhere as part of another object - they should not be linked as parent/child, that would be confusing
+								controller.enqueue({ value: structuredClone(value), index: i });
 							} else {
 								// Matches queryPath, but is nested deeper - still building the record to emit later
 								keep = true;

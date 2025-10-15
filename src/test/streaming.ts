@@ -42,6 +42,17 @@ describe("Streaming", () => {
 		]);
 	});
 
+	test("nested objects are distinct objects, one is not the child of the other", async () => {
+		const json = JSON.stringify({ foo: { bar: 1 } });
+		const stream = makeReadableStreamFromJson(json).pipeThrough(
+			new JSONParseStream(["$.foo", "$"]),
+		);
+		const chunks = await Array.fromAsync(stream, (row) => row.value);
+		assert.deepStrictEqual(chunks, [{ bar: 1 }, { foo: { bar: 1 } }]);
+		chunks[0].bar = 2;
+		assert.deepStrictEqual(chunks, [{ bar: 2 }, { foo: { bar: 1 } }]);
+	});
+
 	test("streams values from non-overlapping paths at different levels, without clobbering each other", async () => {
 		const stream = makeReadableStreamFromJson(
 			'{"bar": [1,2,3], "foo": [{"key": 1}]}',
