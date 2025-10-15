@@ -10,18 +10,22 @@ Imagine you have some JSON like:
 [{ "x": 1 }, { "x": 2 }, { "x": 3 }]
 ```
 
-You can just `JSON.parse` it and get whatever you want from it. But what if there are so many objects that it becomes very slow to do that, or you even run out of memory?
+You can just `JSON.parse` it and get whatever you want from it. But what if it's so big that it's very slow to do that, or you even run out of memory?
 
-By using this library, you can stream through the JSON object. This code will do that, printing out each object as it is parsed, without reading the entire JSON file into memory:
+By using this library, you can stream through the JSON object. Here's an example that prints out each object as it is parsed, without ever reading the entire JSON object into memory:
 
 ```js
-import { JSONParseStream } from "@dumbmatter/json-web-streams";
+import { JSONParseStream } from ".";
 
 const response = await fetch("https://example.com/data.json");
-const stream = response.body.pipeThrough(new JSONParseStream(["$[*]"]));
-for await (const [object, index] of stream) {
-	console.log(object);
-}
+await response.body
+    .pipeThrough(new TextDecoderStream())
+    .pipeThrough(new JSONParseStream(["$[*]"]));
+    .pipeTo(new WritableStream({
+        write([value, index]) {
+            console.log(value);
+        },
+    });
 
 // Output:
 // {"x": 1}
@@ -31,15 +35,15 @@ for await (const [object, index] of stream) {
 
 ## API
 
-`new JSONParseStream(jsonPaths: string[])` - The parameter is an array of strings, where each string represents one type of element that you want to emit from your stream. The syntax is a subset of JSONPath - only string keys and wildcard arrays are supported. For instance `$.foo[*]` means "every element of the array inside the property "foo" of the root object", like if you had this data:
+`new JSONParseStream(jsonPaths: string[])` - The `jsonPaths` parameter is an array of strings, where each string represents one type of element that you want to emit from your stream. The syntax is a subset of [JSONPath](https://en.wikipedia.org/wiki/JSONPath) - currently only string keys and wildcard arrays are supported. For instance `$.foo[*]` means "every element of the array inside the property "foo" of the root object". (It can also be written in the more verbose syntax `$["foo"][*]` which is necessary if the key contains a character you need to escape.) Like if you had this data:
 
 ```json
 { "foo": [{ "x": 1 }, { "x": 2 }, { "x": 3 }] }
 ```
 
-(It can also be written in the more verbose syntax `$["foo"][*]` which is necessary if the key contains a character you need to escape.)
+It would emit `{ "x": 1 }`, `{ "x": 2 }`, and `{ "x": 3 }`.
 
-For a property inside the array (like getting all the values of `key` from `{ "foo": [{ "x": 1 }, { "x": 2 }, { "x": 3 }] }`), you'd write it as `$.foo[*].key` and it would emit the values `1`, `2`, and `3`.
+For a property inside the array (like getting all the values of `x` from `{ "foo": [{ "x": 1 }, { "x": 2 }, { "x": 3 }] }`), you'd write it as `$.foo[*].x` and it would emit the values `1`, `2`, and `3`.
 
 Or if the array is at the root if the object like the initial example `[{ "x": 1 }, { "x": 2 }, { "x": 3 }]` then you'd write something like `$[*]` to emit each object, or `$[*].key` to emit just the numbers.
 
@@ -53,7 +57,7 @@ name package "JSON Web Stream" or "JSON Web Streams"
 
 stringify
 
-supprt JSON Lines, json-seq, or just multiple JSON objects, with an option
+support JSON Lines, json-seq, or just multiple JSON objects, with an option
 
 - remove check for seenRootObject and ignore delimeter, whatever it is. whitespace already automatically gets ignored
 - option multi: true enables all of this
