@@ -12,7 +12,7 @@ const parseWholeJson = async (json: string) => {
 		.pipeThrough(new JSONParseStream(["$"]))
 		.pipeTo(
 			new WritableStream({
-				write([value]) {
+				write({ value }) {
 					if (firstValue === undefined) {
 						firstValue = value;
 					}

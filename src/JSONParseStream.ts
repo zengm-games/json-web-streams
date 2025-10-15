@@ -26,7 +26,13 @@ const isEqual = (x: QueryPath[number], y: QueryPath[number] | undefined) => {
 	);
 };
 
-export class JSONParseStream extends TransformStream<string, [any, number]> {
+export class JSONParseStream extends TransformStream<
+	string,
+	{
+		value: any;
+		index: number;
+	}
+> {
 	_parser: JSONParserText;
 
 	constructor(jsonPaths: Readonly<JSONPath[]>) {
@@ -47,7 +53,7 @@ export class JSONParseStream extends TransformStream<string, [any, number]> {
 						if (queryPath.every((x, j) => isEqual(x, path[j]))) {
 							if (path.length === queryPath.length) {
 								// Exact match of queryPath - emit record, and we don't need to keep it any more for this queryPath
-								controller.enqueue([value, i]);
+								controller.enqueue({ value, index: i });
 							} else {
 								// Matches queryPath, but is nested deeper - still building the record to emit later
 								keep = true;

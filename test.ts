@@ -10,13 +10,13 @@ const readableStream = new ReadableStream({
 	},
 });
 
-const queryPaths = ["$.foo[*]", "$.foo", "$.bar[*]"] as const;
-const transformStream = new JSONParseStream(queryPaths);
+const jsonPaths = ["$.foo[*]", "$.foo", "$.bar[*]"] as const;
+const transformStream = new JSONParseStream(jsonPaths);
 
 await readableStream.pipeThrough(transformStream).pipeTo(
 	new WritableStream({
-		write([value, index]) {
-			console.log("output", index, queryPaths[index], value);
+		write({ value, index }) {
+			console.log("output", index, jsonPaths[index], value);
 		},
 	}),
 );

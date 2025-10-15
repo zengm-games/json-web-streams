@@ -23,7 +23,7 @@ await response.body
 	.pipeThrough(new JSONParseStream(["$[*]"]))
 	.pipeTo(
 		new WritableStream({
-			write([value, index]) {
+			write({ value }) {
 				console.log(value);
 			},
 		}),
@@ -62,9 +62,9 @@ stringify
 support JSON Lines, json-seq, or just multiple JSON objects, with an option
 
 - remove check for seenRootObject and ignore delimeter, whatever it is. whitespace already automatically gets ignored
-- option multi: true enables all of this
+- option multi: true enables all of this, and also emits multiIndex saying which row it is
 
-emit object rather than array? would be nice to add other props like wildcards, multiIndex
+output jsonPath or index? or both?
 
 typescript generic for output objects/indexes
 

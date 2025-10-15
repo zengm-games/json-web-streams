@@ -11,8 +11,8 @@ describe("Streaming", () => {
 		);
 		const chunks = await Array.fromAsync(stream);
 		assert.deepStrictEqual(chunks, [
-			[1, 0],
-			[2, 0],
+			{ value: 1, index: 0 },
+			{ value: 2, index: 0 },
 		]);
 	});
 
@@ -22,10 +22,10 @@ describe("Streaming", () => {
 		);
 		const chunks = await Array.fromAsync(stream);
 		assert.deepStrictEqual(chunks, [
-			[1, 0],
-			[2, 0],
-			[{ x: 3 }, 1],
-			[{ x: 4 }, 1],
+			{ value: 1, index: 0 },
+			{ value: 2, index: 0 },
+			{ value: { x: 3 }, index: 1 },
+			{ value: { x: 4 }, index: 1 },
 		]);
 	});
 
@@ -35,10 +35,10 @@ describe("Streaming", () => {
 		);
 		const chunks = await Array.fromAsync(stream);
 		assert.deepStrictEqual(chunks, [
-			[3, 1],
-			[{ x: 3 }, 0],
-			[4, 1],
-			[{ x: 4 }, 0],
+			{ value: 3, index: 1 },
+			{ value: { x: 3 }, index: 0 },
+			{ value: 4, index: 1 },
+			{ value: { x: 4 }, index: 0 },
 		]);
 	});
 
@@ -52,8 +52,8 @@ describe("Streaming", () => {
 
 		const chunks = await Array.fromAsync(stream);
 		const foo = chunks
-			.filter((chunk) => chunk[1] === 0)
-			.map((chunk) => chunk[0]);
+			.filter((chunk) => chunk.index === 0)
+			.map((chunk) => chunk.value);
 		assert.deepStrictEqual(foo, [[{ key: 1 }]]);
 	});
 
