@@ -55,10 +55,6 @@ The `jsonPaths` parameter is an array so you can pass multiple query paths to `J
 
 ## Plan
 
-name package "JSON Web Stream" or "JSON Web Streams"
-
-stringify
-
 support JSON Lines, NDJSON, json-seq, or just multiple JSON objects, with an option
 
 - support all these https://en.wikipedia.org/wiki/JSON_streaming#Approaches
@@ -72,6 +68,8 @@ Support validating schema of emitted objects
 add example for multiple jsonPaths
 
 ## Future
+
+stringify
 
 More JSONPath stuff https://www.rfc-editor.org/rfc/rfc9535.html
 
