@@ -463,11 +463,8 @@ class JSONParserText {
 	}
 
 	numberReviver(text: string, i: number) {
-		if (text.endsWith(".")) {
-			return this.charError(text, i);
-		}
-
-		const number = Number(text);
+		// JSON.parse handles various number formatting quirks for us, so why not!
+		const number = JSON.parse(text);
 
 		if (Number.isNaN(number)) {
 			return this.charError(text, i);
