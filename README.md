@@ -49,25 +49,24 @@ The `jsonPaths` parameter is an array so you can pass multiple query paths to `J
 
 ## Plan
 
-overwrite every value with undefined, or just object/array? which is faster?
-
 name package "JSON Web Stream" or "JSON Web Streams"
 
 https://github.com/nst/JSONTestSuite
-
-typescript - queryStrings must have length at least 1, or it's not doing anything
-
-test memory usage (delete values we are not interested in) - can expose parser internals somehow
 
 stringify
 
 supprt JSON Lines, json-seq, or just multiple JSON objects, with an option
 
 - remove check for seenRootObject and ignore delimeter, whatever it is. whitespace already automatically gets ignored
+- option multi: true enables all of this
 
 what if data comes in binary, do we need TextDecoderStream?
 
 emit object rather than array?
+
+typescript for stream inputs/outputs, including generic for output objects
+
+- validator for output objects?
 
 ## Future
 

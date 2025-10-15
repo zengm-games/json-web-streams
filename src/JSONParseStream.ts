@@ -34,9 +34,9 @@ export class JSONParseStream extends TransformStream {
 			start(controller) {
 				parser = new JSONParserText((value, stack) => {
 					const path = stackToQueryPath(stack);
-					// console.log('value', value);
-					// console.log('path', path);
-					// console.log('stack', stack);
+					// console.log("value", value);
+					// console.log("path", path);
+					// console.log("stack", stack);
 
 					let keep = false;
 					for (const [i, queryPath] of queryPaths.entries()) {
@@ -49,7 +49,13 @@ export class JSONParseStream extends TransformStream {
 								keep = true;
 							}
 						} else {
-							// Doesn't match queryPath, don't need to keep
+							// Doesn't match queryPath, don't need to keep, but only worry about arrays/objects. Or delete these two lines and it will overwrite these primitive values too.
+							const type = typeof value;
+							keep =
+								type === "string" ||
+								type === "number" ||
+								type === "boolean" ||
+								value === null;
 						}
 					}
 					// console.log("Keep?", keep, "\n");
