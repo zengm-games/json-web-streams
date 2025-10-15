@@ -6,11 +6,13 @@
 	"license": "Apache-2.0",
 	"author": "",
 	"type": "module",
-	"main": "index.js",
+	"main": "dist/index.js",
+	"types": "dist/index.d.ts",
 	"files": [
 		"dist"
 	],
 	"scripts": {
+		"build": "tsdown --unbundle",
 		"format": "prettier --write .",
 		"lint": "npm-run-all --parallel lint:oxlint lint:tsc",
 		"lint:oxlint": "oxlint --type-aware",
@@ -30,8 +32,12 @@
 		"prettier-plugin-packagejson": "^2.5.19",
 		"pretty-quick": "^4.2.2",
 		"simple-git-hooks": "^2.13.1",
+		"tsdown": "^0.15.7",
 		"typescript": "^5.9.3",
 		"vitest": "^3.2.4"
 	},
-	"packageManager": "pnpm@10.18.2"
+	"packageManager": "pnpm@10.18.2",
+	"engines": {
+		"node": ">=22"
+	}
 }

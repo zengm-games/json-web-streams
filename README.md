@@ -71,9 +71,9 @@ Support validating schema of emitted objects
 
 add example for multiple jsonPaths
 
-build - tsdown?
-
 github actions CI
+
+- what node versions? See engines in package.json
 
 ## Future
 
