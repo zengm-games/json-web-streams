@@ -51,8 +51,6 @@ The `jsonPaths` parameter is an array so you can pass multiple query paths to `J
 
 name package "JSON Web Stream" or "JSON Web Streams"
 
-https://github.com/nst/JSONTestSuite
-
 stringify
 
 supprt JSON Lines, json-seq, or just multiple JSON objects, with an option

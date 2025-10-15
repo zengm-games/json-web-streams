@@ -147,7 +147,7 @@ class JSONParserText {
 				} else {
 					// Check for control characters that are not valid inside JSON strings
 					const code = n.charCodeAt(0);
-					if (code <= 0x001f || (code >= 0x007f && code <= 0x009f)) {
+					if (code <= 0x001f) {
 						this.charError(n, i);
 					}
 
