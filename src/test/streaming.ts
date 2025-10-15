@@ -41,4 +41,38 @@ describe("Streaming", () => {
 			[{ x: 4 }, 0],
 		]);
 	});
+
+	test("confirm that we're not just reading everything into memory all the time", async () => {
+		let maxStackSize = 0;
+
+		// Monkey patch to track the size of the stack
+		const monkeyPatch = (stream: JSONParseStream) => {
+			const prevOnValue = stream._parser.onValue;
+			stream._parser.onValue = (value, stack) => {
+				// This is not a very accurate way to get stack size, but works enough for these purposes.
+				const stackSize = JSON.stringify(stack).length;
+				maxStackSize = Math.max(maxStackSize, stackSize);
+				prevOnValue(value, stack);
+			};
+			return stream;
+		};
+
+		// This stream emits the whole object ($) so it has to read the whole object into memory at some point
+		const stream = makeReadableStreamFromJson(json).pipeThrough(
+			monkeyPatch(new JSONParseStream(["$"])),
+		);
+		await Array.fromAsync(stream);
+		const maxStackSize0 = maxStackSize;
+
+		// This stream only emits part of the object, so it should use less memory than the previous stream
+		maxStackSize = 0;
+		const stream2 = makeReadableStreamFromJson(json).pipeThrough(
+			monkeyPatch(new JSONParseStream(["$[*].bar[*]"])),
+		);
+		await Array.fromAsync(stream2);
+		const maxStackSize1 = maxStackSize;
+
+		// The first stream should use more memory than the second
+		assert.isAbove(maxStackSize0, maxStackSize1);
+	});
 });

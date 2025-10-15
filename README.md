@@ -67,6 +67,8 @@ supprt JSON Lines, json-seq, or just multiple JSON objects, with an option
 
 what if data comes in binary, do we need TextDecoderStream?
 
+emit object rather than array?
+
 ## Future
 
 Support wildcard keys of an object, somehow emit the wildcard value or full path as 3rd argument

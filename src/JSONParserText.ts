@@ -50,7 +50,7 @@ export type Stack = {
 	mode: Mode | undefined;
 }[];
 
-type OnValue = (value: Value, stak: Stack) => void;
+type OnValue = (value: Value, stack: Stack) => void;
 
 class JSONParserText {
 	tokenizerState: TokenizerState = "START";
