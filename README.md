@@ -67,14 +67,13 @@ support JSON Lines, NDJSON, json-seq, or just multiple JSON objects, with an opt
 
 output jsonPath or index? or both?
 
-typescript generic for output objects/indexes
-
-- enforce same length for generic param and jsonPaths
-- typescript tests
-
 Support validating schema of emitted objects
 
 add example for multiple jsonPaths
+
+build - tsdown?
+
+github actions CI
 
 ## Future
 
