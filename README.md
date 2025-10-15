@@ -180,6 +180,7 @@ support JSON Lines, NDJSON, json-seq, or just multiple JSON objects, with an opt
 - remove check for seenRootObject and ignore delimeter, whatever it is. whitespace already automatically gets ignored
 - option multi: true enables all of this, and also emits multiIndex saying which row it is
 - add to options and output docs
+- add type test - multiIndex property should only be defined if multi is true
 
 output jsonPath or index? or both?
 

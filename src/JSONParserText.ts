@@ -50,7 +50,9 @@ export type Stack = {
 	mode: Mode | undefined;
 }[];
 
-type OnValue = (value: Value, stack: Stack) => void;
+type OnValue = (value: Value, stack: Stack, multiIndex: number) => void;
+
+const WHITESPACE = new Set([" ", "\t", "\n", "\r"]);
 
 class JSONParserText {
 	tokenizerState: TokenizerState = "START";
@@ -65,9 +67,12 @@ class JSONParserText {
 	unicode: string | undefined;
 	highSurrogate: number | undefined;
 	seenRootObject = false;
+	multi: boolean;
+	multiIndex = 0;
 
-	constructor(onValue: OnValue) {
+	constructor({ multi, onValue }: { multi: boolean; onValue: OnValue }) {
 		this.onValue = onValue;
+		this.multi = multi;
 	}
 
 	charError(char: string, i: number) {
@@ -95,9 +100,13 @@ class JSONParserText {
 			if (
 				this.stack.length === 0 &&
 				this.seenRootObject &&
-				!(n === " " || n === "\t" || n === "\n" || n === "\r")
+				!WHITESPACE.has(n)
 			) {
-				return this.charError(n, i);
+				if (this.multi) {
+					this.multiIndex += 1;
+				} else {
+					return this.charError(n, i);
+				}
 			}
 
 			if (this.tokenizerState === "START") {
@@ -132,9 +141,7 @@ class JSONParserText {
 				} else if (n >= "1" && n <= "9") {
 					this.string = n;
 					this.tokenizerState = "NUMBER";
-				} else if (n === " " || n === "\t" || n === "\n" || n === "\r") {
-					// whitespace
-				} else {
+				} else if (!WHITESPACE.has(n)) {
 					return this.charError(n, i);
 				}
 			} else if (this.tokenizerState === "STRING1") {
@@ -363,14 +370,18 @@ class JSONParserText {
 		if (this.mode) {
 			this.state = "COMMA";
 		}
-		this.onValue(value, [
-			...this.stack,
-			{
-				value: this.value,
-				key: this.key,
-				mode: this.mode,
-			},
-		]);
+		this.onValue(
+			value,
+			[
+				...this.stack,
+				{
+					value: this.value,
+					key: this.key,
+					mode: this.mode,
+				},
+			],
+			this.multiIndex,
+		);
 	}
 
 	onToken(token: Token, value: Value, i: number) {
