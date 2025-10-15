@@ -25,6 +25,10 @@ describe("Parsing", async () => {
 		const filename = path.basename(entry);
 		const shouldPass = filename.startsWith("pass") || filename.startsWith("y_");
 
+		if (!filename.includes("y_structure_lonely_int")) {
+			// continue;
+		}
+
 		test(filename, async () => {
 			const json = await readFile(entry, "utf8");
 
