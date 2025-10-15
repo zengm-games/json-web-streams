@@ -64,13 +64,15 @@ support JSON Lines, json-seq, or just multiple JSON objects, with an option
 
 what if data comes in binary, do we need TextDecoderStream?
 
-emit object rather than array?
+emit object rather than array? would be nice to add other props like wildcards, multiIndex
 
 typescript for stream inputs/outputs, including generic for output objects
 
 - validator for output objects?
 
 add example for multiple jsonPaths
+
+Do I need to structuredClone value on emit? Consider nested objects, confusing if they are linked
 
 ## Future
 

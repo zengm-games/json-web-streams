@@ -51,8 +51,10 @@ describe("Streaming", () => {
 		);
 
 		const chunks = await Array.fromAsync(stream);
-		const foo = chunks.filter((chunk) => chunk[1] === 0);
-		assert.strictEqual(foo, [[{ key: 1 }]]);
+		const foo = chunks
+			.filter((chunk) => chunk[1] === 0)
+			.map((chunk) => chunk[0]);
+		assert.deepStrictEqual(foo, [[{ key: 1 }]]);
 	});
 
 	test("confirm that we're not just reading everything into memory all the time", async () => {

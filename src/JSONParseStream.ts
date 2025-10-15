@@ -49,13 +49,16 @@ export class JSONParseStream extends TransformStream {
 								keep = true;
 							}
 						} else {
-							// Doesn't match queryPath, don't need to keep, but only worry about arrays/objects. Or delete these two lines and it will overwrite these primitive values too.
+							// Doesn't match queryPath, don't need to keep, but only worry about arrays/objects. Or delete this branch and it will overwrite these primitive values too.
 							const type = typeof value;
-							keep =
+							if (
 								type === "string" ||
 								type === "number" ||
 								type === "boolean" ||
-								value === null;
+								value === null
+							) {
+								keep = true;
+							}
 						}
 					}
 					// console.log("Keep?", keep, "\n");
