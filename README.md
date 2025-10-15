@@ -1,4 +1,4 @@
-# JSON Web Streams
+# json-web-streams
 
 Streaming JSON parser built on top of web streams.
 
@@ -15,7 +15,7 @@ You can just `JSON.parse` it and get whatever you want from it. But what if it's
 By using this library, you can stream through the JSON object. Here's an example that prints out each object as it is parsed, without ever reading the entire JSON object into memory:
 
 ```js
-import { JSONParseStream } from ".";
+import { JSONParseStream } from "json-web-streams"
 
 const response = await fetch("https://example.com/data.json");
 await response.body
@@ -70,8 +70,12 @@ typescript for stream inputs/outputs, including generic for output objects
 
 - validator for output objects?
 
+add example for multiple jsonPaths
+
 ## Future
 
 Support wildcard keys of an object, somehow emit the wildcard value or full path as 3rd argument
+
+More JSONPath stuff, like ranges
 
 Support validating schema of emitted objects

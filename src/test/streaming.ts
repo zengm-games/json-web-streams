@@ -42,6 +42,19 @@ describe("Streaming", () => {
 		]);
 	});
 
+	test("streams values from non-overlapping paths at different levels, without clobbering each other", async () => {
+		const stream = makeReadableStreamFromJson(
+			'{"bar": [1,2,3], "foo": [{"key": 1}]}',
+		).pipeThrough(
+			// Why does order of jsonPaths matter?
+			new JSONParseStream(["$.foo", "$.bar[*]"]),
+		);
+
+		const chunks = await Array.fromAsync(stream);
+		const foo = chunks.filter((chunk) => chunk[1] === 0);
+		assert.strictEqual(foo, [[{ key: 1 }]]);
+	});
+
 	test("confirm that we're not just reading everything into memory all the time", async () => {
 		let maxStackSize = 0;
 
