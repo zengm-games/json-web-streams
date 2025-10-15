@@ -69,6 +69,9 @@ output jsonPath or index? or both?
 
 typescript generic for output objects/indexes
 
+- enforce same length for generic param and jsonPaths
+- typescript tests
+
 Support validating schema of emitted objects
 
 add example for multiple jsonPaths

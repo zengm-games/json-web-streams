@@ -44,7 +44,7 @@ test("streams values from two paths, where one is nested in the other", async ()
 test("nested objects are distinct objects, one is not the child of the other", async () => {
 	const json = JSON.stringify({ foo: { bar: 1 } });
 	const stream = makeReadableStreamFromJson(json).pipeThrough(
-		new JSONParseStream(["$.foo", "$"]),
+		new JSONParseStream<[any, any]>(["$.foo", "$"]),
 	);
 	const chunks = await Array.fromAsync(stream, (row) => row.value);
 	assert.deepStrictEqual(chunks, [{ bar: 1 }, { foo: { bar: 1 } }]);

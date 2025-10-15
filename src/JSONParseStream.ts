@@ -26,16 +26,27 @@ const isEqual = (x: QueryPath[number], y: QueryPath[number] | undefined) => {
 	);
 };
 
-export class JSONParseStream extends TransformStream<
-	string,
-	{
-		value: any;
-		index: number;
-	}
-> {
+// Convert string literal to number literal
+type ToNumber<T extends string> = T extends `${infer N extends number}`
+	? N
+	: never;
+
+// Convert an array like `[number, string]` to an indexed union where the values come from the input array and the indexes come from the position in the input array: `{ value: number, index: 0 } | { value: string, index: 1 }`
+type IndexedUnion<T extends readonly unknown[]> = {
+	[I in keyof T]: I extends `${number}`
+		? {
+				value: T[I];
+				index: ToNumber<I & string>;
+			}
+		: never;
+}[number];
+
+export class JSONParseStream<
+	T extends readonly unknown[] = unknown[],
+> extends TransformStream<string, IndexedUnion<T>> {
 	_parser: JSONParserText;
 
-	constructor(jsonPaths: Readonly<JSONPath[]>) {
+	constructor(jsonPaths: Readonly<[...{ [K in keyof T]: JSONPath }]>) {
 		let parser: JSONParserText;
 
 		const queryPaths = jsonPaths.map(jsonPathToQueryPath);
@@ -54,7 +65,10 @@ export class JSONParseStream extends TransformStream<
 							if (path.length === queryPath.length) {
 								// Exact match of queryPath - emit record, and we don't need to keep it any more for this queryPath
 								// structuredClone is needed in case this object is emitted elsewhere as part of another object - they should not be linked as parent/child, that would be confusing
-								controller.enqueue({ value: structuredClone(value), index: i });
+								controller.enqueue({
+									value: structuredClone(value),
+									index: i,
+								} as any);
 							} else {
 								// Matches queryPath, but is nested deeper - still building the record to emit later
 								keep = true;
