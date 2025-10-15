@@ -59,8 +59,9 @@ name package "JSON Web Stream" or "JSON Web Streams"
 
 stringify
 
-support JSON Lines, json-seq, or just multiple JSON objects, with an option
+support JSON Lines, NDJSON, json-seq, or just multiple JSON objects, with an option
 
+- support all these https://en.wikipedia.org/wiki/JSON_streaming#Approaches
 - remove check for seenRootObject and ignore delimeter, whatever it is. whitespace already automatically gets ignored
 - option multi: true enables all of this, and also emits multiIndex saying which row it is
 

@@ -1,6 +1,6 @@
 import { glob, readFile } from "node:fs/promises";
 import path from "node:path";
-import { assert, describe, test } from "vitest";
+import { assert, test } from "vitest";
 import { JSONParseStream } from "../JSONParseStream.ts";
 import { makeReadableStreamFromJson } from "./utils.ts";
 
@@ -23,34 +23,32 @@ const parseWholeJson = async (json: string) => {
 	return firstValue;
 };
 
-describe("Parsing", async () => {
-	for await (const entry of glob(path.join(__dirname, "parsing/**/*.json"))) {
-		const filename = path.basename(entry);
-		const shouldPass = filename.startsWith("pass") || filename.startsWith("y_");
+for await (const entry of glob(path.join(__dirname, "parsing/**/*.json"))) {
+	const filename = path.basename(entry);
+	const shouldPass = filename.startsWith("pass") || filename.startsWith("y_");
 
-		test(filename, async () => {
-			const json = await readFile(entry, "utf8");
+	test(filename, async () => {
+		const json = await readFile(entry, "utf8");
 
-			let error, object;
-			try {
-				object = await parseWholeJson(json);
-			} catch (error2) {
-				error = error2;
-			}
+		let error, object;
+		try {
+			object = await parseWholeJson(json);
+		} catch (error2) {
+			error = error2;
+		}
 
-			if (shouldPass && error) {
-				throw new Error("Expected valid JSON, but parsing failed", {
-					cause: error,
-				});
-			} else if (!shouldPass && !error) {
-				throw new Error("Expected invalid JSON, but parsing succeeded");
-			}
+		if (shouldPass && error) {
+			throw new Error("Expected valid JSON, but parsing failed", {
+				cause: error,
+			});
+		} else if (!shouldPass && !error) {
+			throw new Error("Expected invalid JSON, but parsing succeeded");
+		}
 
-			// If we expected a pass, confirm the parsed object matches JSON.parse
-			if (shouldPass) {
-				const object2 = JSON.parse(json);
-				assert.deepStrictEqual(object, object2);
-			}
-		});
-	}
-});
+		// If we expected a pass, confirm the parsed object matches JSON.parse
+		if (shouldPass) {
+			const object2 = JSON.parse(json);
+			assert.deepStrictEqual(object, object2);
+		}
+	});
+}
