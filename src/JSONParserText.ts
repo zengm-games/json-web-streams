@@ -463,6 +463,10 @@ class JSONParserText {
 	}
 
 	numberReviver(text: string, i: number) {
+		if (text.endsWith(".")) {
+			return this.charError(text, i);
+		}
+
 		const number = Number(text);
 
 		if (Number.isNaN(number)) {
