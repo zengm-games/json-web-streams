@@ -10,7 +10,7 @@ const readableStream = new ReadableStream({
 	},
 });
 
-const queryPaths = ["$.foo[*]", "$.foo", "$.bar[*]"];
+const queryPaths = ["$.foo[*]", "$.foo", "$.bar[*]"] as const;
 const transformStream = new JSONParseStream(queryPaths);
 
 await readableStream.pipeThrough(transformStream).pipeTo(

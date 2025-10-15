@@ -62,13 +62,11 @@ support JSON Lines, json-seq, or just multiple JSON objects, with an option
 - remove check for seenRootObject and ignore delimeter, whatever it is. whitespace already automatically gets ignored
 - option multi: true enables all of this
 
-what if data comes in binary, do we need TextDecoderStream?
-
 emit object rather than array? would be nice to add other props like wildcards, multiIndex
 
 typescript for stream inputs/outputs, including generic for output objects
 
-- validator for output objects?
+Support validating schema of emitted objects
 
 add example for multiple jsonPaths
 
@@ -76,8 +74,21 @@ Do I need to structuredClone value on emit? Consider nested objects, confusing i
 
 ## Future
 
-Support wildcard keys of an object, somehow emit the wildcard value or full path as 3rd argument
+More JSONPath stuff https://www.rfc-editor.org/rfc/rfc9535.html
 
-More JSONPath stuff, like ranges
-
-Support validating schema of emitted objects
+- in array
+  - index
+  - negative index
+  - slice with one side unbounded
+  - slice with negative index and one side unbounded
+  - slice between two numbers
+  - step size like 1:2:9, in all of the above situations
+  - filter expression (starting with ?)
+- functions at tail end of path (like min, max, etc)
+  - can there be multiple?
+  - @ referencing this object
+  - $ referencing root object
+- .. deep scan
+- wildcard keys
+  - emit the matched keys as an array
+- multiple selectors in bracket notation like ['foo', 'bar]

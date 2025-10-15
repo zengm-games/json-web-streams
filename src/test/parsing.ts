@@ -5,17 +5,20 @@ import { JSONParseStream } from "../JSONParseStream.ts";
 import { makeReadableStreamFromJson } from "./utils.ts";
 
 const parseWholeJson = async (json: string) => {
-	const stream = makeReadableStreamFromJson(json).pipeThrough(
-		new JSONParseStream(["$"]),
-	);
+	// With jsonPath $ (return root object) it should only emit one chunk, but with invalid JSON there could be more text, and we need to read through it all to make sure we see any errors that appear
+	let firstValue: any;
 
-	// With queryPath [] (return root object) it should only emit one chunk, but with invalid JSON there could be more text, and we need to read through it all to make sure we see any errors that appear
-	let firstValue;
-	for await (const [value] of stream) {
-		if (firstValue === undefined) {
-			firstValue = value;
-		}
-	}
+	await makeReadableStreamFromJson(json)
+		.pipeThrough(new JSONParseStream(["$"]))
+		.pipeTo(
+			new WritableStream({
+				write([value]) {
+					if (firstValue === undefined) {
+						firstValue = value;
+					}
+				},
+			}),
+		);
 
 	return firstValue;
 };

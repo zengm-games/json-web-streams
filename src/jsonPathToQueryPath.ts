@@ -10,7 +10,10 @@ export type QueryPath = (
 	  }
 )[];
 
-export const jsonPathToQueryPath = (jsonPath: string): QueryPath => {
+// Would be nice to be more strict than this, but I think it's not possible
+export type JSONPath = "$" | `$${"." | "["}${string}`;
+
+export const jsonPathToQueryPath = (jsonPath: JSONPath): QueryPath => {
 	let parsed;
 	try {
 		parsed = parser(jsonPath);

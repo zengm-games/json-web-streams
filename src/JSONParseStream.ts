@@ -1,5 +1,9 @@
 import JSONParserText, { type Stack } from "./JSONParserText.ts";
-import { jsonPathToQueryPath, type QueryPath } from "./jsonPathToQueryPath.ts";
+import {
+	jsonPathToQueryPath,
+	type JSONPath,
+	type QueryPath,
+} from "./jsonPathToQueryPath.ts";
 
 const stackToQueryPath = (stack: Stack): QueryPath => {
 	return stack.slice(1).map((row) => {
@@ -25,7 +29,7 @@ const isEqual = (x: QueryPath[number], y: QueryPath[number] | undefined) => {
 export class JSONParseStream extends TransformStream {
 	_parser: JSONParserText;
 
-	constructor(jsonPaths: string[]) {
+	constructor(jsonPaths: Readonly<JSONPath[]>) {
 		let parser: JSONParserText;
 
 		const queryPaths = jsonPaths.map(jsonPathToQueryPath);
