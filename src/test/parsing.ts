@@ -23,7 +23,7 @@ const parseWholeJson = async (json: string) => {
 describe("Parsing", async () => {
 	for await (const entry of glob(path.join(__dirname, "parsing/**/*.json"))) {
 		const filename = path.basename(entry);
-		const shouldPass = filename.startsWith("pass");
+		const shouldPass = filename.startsWith("pass") || filename.startsWith("y_");
 
 		test(filename, async () => {
 			const json = await readFile(entry, "utf8");
