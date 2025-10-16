@@ -64,21 +64,29 @@ type IndexedUnion<T extends readonly unknown[]> = {
 }[number];
 */
 
+type JSONPathsObject = Partial<
+	Record<JSONPath, StandardSchemaV1 | null | undefined>
+>;
+
 export const createJSONParserStream = <
-	JSONPathsObject extends Partial<
-		Record<JSONPath, StandardSchemaV1 | null | undefined>
-	> = Record<JSONPath, never>,
+	T extends JSONPathsObject = Record<JSONPath, never>,
 >(
-	jsonPaths: JSONPathsObject,
+	jsonPaths: T | Readonly<JSONPath[]>,
 ) => {
-	return new JSONParserStream<JSONPathsObject>(jsonPaths);
+	let jsonPathsObject: JSONPathsObject;
+	if (Array.isArray(jsonPaths)) {
+		jsonPathsObject = {};
+		for (const jsonPath of jsonPaths) {
+			jsonPathsObject[jsonPath] = undefined;
+		}
+	} else {
+		jsonPathsObject = jsonPaths;
+	}
+
+	return new JSONParserStream<T>(jsonPathsObject);
 };
 
-class JSONParserStream<
-	JSONPathsObject extends Partial<
-		Record<JSONPath, StandardSchemaV1 | null | undefined>
-	>,
-> extends TransformStream<
+class JSONParserStream<T extends JSONPathsObject> extends TransformStream<
 	string,
 	{
 		jsonPath: JSONPath;
@@ -89,7 +97,7 @@ class JSONParserStream<
 	_parser: JSONParserText;
 
 	constructor(
-		jsonPaths: JSONPathsObject,
+		jsonPaths: T,
 		options?: {
 			multi?: boolean;
 		},
