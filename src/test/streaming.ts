@@ -1,5 +1,5 @@
 import { assert, test } from "vitest";
-import { JSONParseStream } from "../JSONParseStream.ts";
+import { JSONParserStream } from "../JSONParserStream.ts";
 import type { JSONPath } from "../jsonPathToQueryPath.ts";
 import { makeReadableStreamFromJson } from "./utils.ts";
 
@@ -7,7 +7,7 @@ const json = JSON.stringify([{ foo: [1, 2] }, { bar: [{ x: 3 }, { x: 4 }] }]);
 
 test("streams values", async () => {
 	const stream = makeReadableStreamFromJson(json).pipeThrough(
-		new JSONParseStream(["$[*].foo[*]"]),
+		new JSONParserStream(["$[*].foo[*]"]),
 	);
 	const chunks = await Array.fromAsync(stream);
 	assert.deepStrictEqual(chunks, [
@@ -18,7 +18,7 @@ test("streams values", async () => {
 
 test("streams values from two paths", async () => {
 	const stream = makeReadableStreamFromJson(json).pipeThrough(
-		new JSONParseStream(["$[*].foo[*]", "$[*].bar[*]"]),
+		new JSONParserStream(["$[*].foo[*]", "$[*].bar[*]"]),
 	);
 	const chunks = await Array.fromAsync(stream);
 	assert.deepStrictEqual(chunks, [
@@ -31,7 +31,7 @@ test("streams values from two paths", async () => {
 
 test("streams values from two paths, where one is nested in the other", async () => {
 	const stream = makeReadableStreamFromJson(json).pipeThrough(
-		new JSONParseStream(["$[*].bar[*]", "$[*].bar[*].x"]),
+		new JSONParserStream(["$[*].bar[*]", "$[*].bar[*].x"]),
 	);
 	const chunks = await Array.fromAsync(stream);
 	assert.deepStrictEqual(chunks, [
@@ -45,7 +45,7 @@ test("streams values from two paths, where one is nested in the other", async ()
 test("nested objects are distinct objects, one is not the child of the other", async () => {
 	const json = JSON.stringify({ foo: { bar: 1 } });
 	const stream = makeReadableStreamFromJson(json).pipeThrough(
-		new JSONParseStream<[any, any]>(["$.foo", "$"]),
+		new JSONParserStream<[any, any]>(["$.foo", "$"]),
 	);
 	const chunks = await Array.fromAsync(stream, (row) => row.value);
 	assert.deepStrictEqual(chunks, [{ bar: 1 }, { foo: { bar: 1 } }]);
@@ -58,7 +58,7 @@ test("streams values from non-overlapping paths at different levels, without clo
 		'{"bar": [1,2,3], "foo": [{"key": 1}]}',
 	).pipeThrough(
 		// Why does order of jsonPaths matter?
-		new JSONParseStream(["$.foo", "$.bar[*]"]),
+		new JSONParserStream(["$.foo", "$.bar[*]"]),
 	);
 
 	const chunks = await Array.fromAsync(stream);
@@ -72,7 +72,7 @@ test("confirm that we're not just reading everything into memory all the time", 
 	let maxStackSize = 0;
 
 	// Monkey patch to track the size of the stack
-	const monkeyPatch = (stream: JSONParseStream) => {
+	const monkeyPatch = (stream: JSONParserStream) => {
 		const prevOnValue = stream._parser.onValue;
 		stream._parser.onValue = (value, stack) => {
 			// This is not a very accurate way to get stack size, but works enough for these purposes.
@@ -85,14 +85,14 @@ test("confirm that we're not just reading everything into memory all the time", 
 
 	// This stream emits the whole object ($) so it has to read the whole object into memory at some point
 	await makeReadableStreamFromJson(json)
-		.pipeThrough(monkeyPatch(new JSONParseStream(["$"])))
+		.pipeThrough(monkeyPatch(new JSONParserStream(["$"])))
 		.pipeTo(new WritableStream());
 	const maxStackSize0 = maxStackSize;
 
 	// This stream only emits part of the object, so it should use less memory than the previous stream
 	maxStackSize = 0;
 	await makeReadableStreamFromJson(json)
-		.pipeThrough(monkeyPatch(new JSONParseStream(["$[*].bar[*]"])))
+		.pipeThrough(monkeyPatch(new JSONParserStream(["$[*].bar[*]"])))
 		.pipeTo(new WritableStream());
 	const maxStackSize1 = maxStackSize;
 
@@ -118,7 +118,7 @@ test("[*] works for objects too, not just arrays", async () => {
 	for (const { jsonPath, data } of cases) {
 		const json = JSON.stringify(data);
 		const stream = makeReadableStreamFromJson(json).pipeThrough(
-			new JSONParseStream([jsonPath]),
+			new JSONParserStream([jsonPath]),
 		);
 		const values = await Array.fromAsync(stream, (x) => x.value);
 		assert.deepStrictEqual(values, ["f", "b"]);

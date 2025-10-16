@@ -1,4 +1,4 @@
-import { JSONParseStream } from "./src/JSONParseStream.ts";
+import { JSONParserStream } from "./src/JSONParserStream.ts";
 
 // An array of data
 const json =
@@ -11,7 +11,7 @@ const readableStream = new ReadableStream({
 });
 
 const jsonPaths = ["$.foo[*]", "$.foo", "$.bar[*]"] as const;
-const transformStream = new JSONParseStream(jsonPaths);
+const transformStream = new JSONParserStream(jsonPaths);
 
 await readableStream.pipeThrough(transformStream).pipeTo(
 	new WritableStream({

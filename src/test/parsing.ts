@@ -1,7 +1,7 @@
 import { glob, readFile } from "node:fs/promises";
 import path from "node:path";
 import { assert, test } from "vitest";
-import { JSONParseStream } from "../JSONParseStream.ts";
+import { JSONParserStream } from "../JSONParserStream.ts";
 import { makeReadableStreamFromJson } from "./utils.ts";
 
 const parseWholeJson = async (json: string) => {
@@ -9,7 +9,7 @@ const parseWholeJson = async (json: string) => {
 	let firstValue: any;
 
 	await makeReadableStreamFromJson(json)
-		.pipeThrough(new JSONParseStream(["$"]))
+		.pipeThrough(new JSONParserStream(["$"]))
 		.pipeTo(
 			new WritableStream({
 				write({ value }) {

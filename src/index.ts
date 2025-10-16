@@ -1,2 +1,2 @@
-export { JSONParseStream } from "./JSONParseStream.ts";
+export { JSONParserStream } from "./JSONParserStream.ts";
 export type { JSONPath } from "./jsonPathToQueryPath.ts";

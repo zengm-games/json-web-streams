@@ -1,11 +1,11 @@
 import { assertType, test } from "vitest";
-import { JSONParseStream } from "../JSONParseStream.ts";
+import { JSONParserStream } from "../JSONParserStream.ts";
 import { makeReadableStreamFromJson } from "./utils.ts";
 
 test("Generic types match input indexes", async () => {
 	const json = "[]";
 	const stream = makeReadableStreamFromJson(json).pipeThrough(
-		new JSONParseStream<[string, number]>(["$.foo", "$.bar"]),
+		new JSONParserStream<[string, number]>(["$.foo", "$.bar"]),
 	);
 	const chunks = await Array.fromAsync(stream);
 	assertType<
@@ -34,7 +34,7 @@ test("Generic types match input indexes", async () => {
 test("With no generic, output values are `unknown`", async () => {
 	const json = "[]";
 	const stream = makeReadableStreamFromJson(json).pipeThrough(
-		new JSONParseStream(["$.foo", "$.bar"]),
+		new JSONParserStream(["$.foo", "$.bar"]),
 	);
 	const chunks = await Array.fromAsync(stream);
 	assertType<
@@ -56,7 +56,7 @@ test("Generic array can't be shorter than jsonPaths array", async () => {
 	await makeReadableStreamFromJson(json)
 		.pipeThrough(
 			// @ts-expect-error
-			new JSONParseStream<[string]>(["$.foo", "$.bar"]),
+			new JSONParserStream<[string]>(["$.foo", "$.bar"]),
 		)
 		.pipeTo(new WritableStream());
 });
@@ -66,7 +66,7 @@ test("Generic array can't be shorter than jsonPaths array", async () => {
 	await makeReadableStreamFromJson(json)
 		.pipeThrough(
 			// @ts-expect-error
-			new JSONParseStream<[string, number]>(["$.foo"]),
+			new JSONParserStream<[string, number]>(["$.foo"]),
 		)
 		.pipeTo(new WritableStream());
 });

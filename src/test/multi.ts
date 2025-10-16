@@ -1,5 +1,5 @@
 import { assert, test } from "vitest";
-import { JSONParseStream } from "../JSONParseStream.ts";
+import { JSONParserStream } from "../JSONParserStream.ts";
 import { makeReadableStreamFromJson } from "./utils.ts";
 
 const separators = ["", "\n", "\r\n", " ", " \n ", "␞"];
@@ -10,7 +10,7 @@ for (const separator of separators) {
 			.map((object) => JSON.stringify(object))
 			.join(separator);
 		const stream = makeReadableStreamFromJson(json).pipeThrough(
-			new JSONParseStream(["$.a"], {
+			new JSONParserStream(["$.a"], {
 				multi: true,
 			}),
 		);
@@ -29,7 +29,7 @@ for (const separator of separators) {
 			objects.map((object) => JSON.stringify(object)).join(separator) +
 			separator;
 		const stream = makeReadableStreamFromJson(json).pipeThrough(
-			new JSONParseStream(["$.a"], {
+			new JSONParserStream(["$.a"], {
 				multi: true,
 			}),
 		);
@@ -45,7 +45,7 @@ for (const separator of separators) {
 test("Multiple objects emitted for $", async () => {
 	const json = "[1][2][3]";
 	const stream = makeReadableStreamFromJson(json).pipeThrough(
-		new JSONParseStream(["$"], {
+		new JSONParserStream(["$"], {
 			multi: true,
 		}),
 	);

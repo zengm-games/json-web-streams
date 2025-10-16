@@ -60,7 +60,7 @@ type IndexedUnion<T extends readonly unknown[]> = {
 		: never;
 }[number];
 
-export class JSONParseStream<
+export class JSONParserStream<
 	T extends readonly unknown[] = unknown[],
 > extends TransformStream<string, IndexedUnion<T>> {
 	_parser: JSONParserText;
