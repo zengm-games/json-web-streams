@@ -20,7 +20,7 @@ export const jsonPathToQueryPath = (jsonPath: JSONPath): QueryPath => {
 	} catch (error) {
 		throw new Error(`Error parsing JSONPath "${jsonPath}"`, { cause: error });
 	}
-	return parsed.segments.map((segment) => {
+	return parsed.segments.flatMap((segment) => {
 		if (segment.type === "ChildSegment") {
 			const node = segment.node;
 			if (node.type === "MemberNameShorthand") {
@@ -33,6 +33,17 @@ export const jsonPathToQueryPath = (jsonPath: JSONPath): QueryPath => {
 					} else if (selector.type === "WildcardSelector") {
 						return { type: "array" };
 					}
+				} else if (node.selectors.length > 1) {
+					return node.selectors.map((selector) => {
+						if (selector.type === "NameSelector") {
+							return {
+								type: "key",
+								value: selector.value,
+							};
+						} else {
+							throw new Error(`Unsupported node: ${JSON.stringify(node)}`);
+						}
+					});
 				}
 				throw new Error(`Unsupported node: ${JSON.stringify(node)}`);
 			} else {

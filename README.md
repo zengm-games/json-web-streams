@@ -196,8 +196,6 @@ add example for multiple jsonPaths
 
 $[*] should select all keys of an object
 
-$['foo','bar'] syntax
-
 ## Future
 
 stringify
