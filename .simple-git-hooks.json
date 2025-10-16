@@ -1,3 +1,0 @@
-{
-	"pre-commit": "node --run pretty-quick -- --staged"
-}
