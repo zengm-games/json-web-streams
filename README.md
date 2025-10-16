@@ -193,9 +193,12 @@ Support validating schema of emitted objects
 
 - use this to determine the type of emitted objects too, rather than generic
 
-emit the matched wildcard keys/indexes as an array?
+add example of wildcard object to docs, including emitting keys
 
-- add example of wildcard object to docs
+move test files inline
+
+- merge multi/parsing/streaming into one
+- no custom include/exclude setting
 
 benchmark?
 

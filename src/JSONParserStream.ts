@@ -54,8 +54,9 @@ type ToNumber<T extends string> = T extends `${infer N extends number}`
 type IndexedUnion<T extends readonly unknown[]> = {
 	[I in keyof T]: I extends `${number}`
 		? {
-				value: T[I];
 				index: ToNumber<I & string>;
+				value: T[I];
+				wildcardKeys?: string[];
 			}
 		: never;
 }[number];
@@ -75,6 +76,19 @@ export class JSONParserStream<
 		const queryPaths = jsonPaths.map(jsonPathToQueryPath);
 		const multi = options?.multi ?? false;
 
+		const wildcardIndexesAll = queryPaths.map((queryPath) => {
+			const indexes = [];
+			for (const [i, component] of queryPath.entries()) {
+				if (component.type === "wildcard") {
+					indexes.push(i);
+				}
+			}
+
+			if (indexes.length > 0) {
+				return indexes;
+			}
+		});
+
 		super({
 			start(controller) {
 				parser = new JSONParserText({
@@ -90,11 +104,39 @@ export class JSONParserStream<
 							if (queryPath.every((x, j) => isEqual(x, path[j]))) {
 								if (path.length === queryPath.length) {
 									// Exact match of queryPath - emit record, and we don't need to keep it any more for this queryPath
-									// structuredClone is needed in case this object is emitted elsewhere as part of another object - they should not be linked as parent/child, that would be confusing
-									controller.enqueue({
-										value: structuredClone(value),
-										index: i,
-									} as any);
+
+									// structuredClone is needed in case this object is emitted elsewhere as part of another object - they should not be linked as parent/child, that would be confusing. But as a quick optimization, if there's only one queryPath, we don't need to clone because there is no other query to overlap with.
+									const valueToEmit =
+										queryPaths.length === 1 ? value : structuredClone(value);
+
+									const wildcardIndexes = wildcardIndexesAll[i];
+									let wildcardKeys;
+									if (wildcardIndexes) {
+										if (wildcardIndexes) {
+											for (const index of wildcardIndexes) {
+												const pathComponent = path[index];
+												if (pathComponent?.type === "key") {
+													if (!wildcardKeys) {
+														wildcardKeys = [];
+													}
+													wildcardKeys.push(pathComponent.value);
+												}
+											}
+										}
+									}
+
+									if (wildcardKeys) {
+										controller.enqueue({
+											index: i,
+											value: valueToEmit,
+											wildcardKeys,
+										} as any);
+									} else {
+										controller.enqueue({
+											index: i,
+											value: valueToEmit,
+										} as any);
+									}
 								} else {
 									// Matches queryPath, but is nested deeper - still building the record to emit later
 									keep = true;

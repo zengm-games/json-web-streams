@@ -120,7 +120,68 @@ test("[*] works for objects too, not just arrays", async () => {
 		const stream = makeReadableStreamFromJson(json).pipeThrough(
 			new JSONParserStream([jsonPath]),
 		);
-		const values = await Array.fromAsync(stream, (x) => x.value);
-		assert.deepStrictEqual(values, ["f", "b"]);
+		const values = await Array.fromAsync(stream);
+		assert.deepStrictEqual(values, [
+			{
+				index: 0,
+				value: "f",
+				wildcardKeys: ["foo"],
+			},
+			{
+				index: 0,
+				value: "b",
+				wildcardKeys: ["bar"],
+			},
+		]);
+	}
+});
+
+test("[*][*] for object and array", async () => {
+	// These are all equivalent
+	const jsonPaths: JSONPath[] = [
+		"$.*.*",
+		"$[*].*",
+		"$.*[*]",
+		"$[*][*]",
+		"$[*,*]",
+	];
+
+	const data = {
+		foo: [1, 2],
+		bar: [3, 4],
+	};
+	const json = JSON.stringify(data);
+
+	for (const jsonPath of jsonPaths) {
+		const stream = makeReadableStreamFromJson(json).pipeThrough(
+			new JSONParserStream([jsonPath]),
+		);
+		const values = await Array.fromAsync(stream);
+		assert.deepStrictEqual(
+			values,
+			[
+				{
+					index: 0,
+					value: 1,
+					wildcardKeys: ["foo"],
+				},
+				{
+					index: 0,
+					value: 2,
+					wildcardKeys: ["foo"],
+				},
+				{
+					index: 0,
+					value: 3,
+					wildcardKeys: ["bar"],
+				},
+				{
+					index: 0,
+					value: 4,
+					wildcardKeys: ["bar"],
+				},
+			],
+			jsonPath,
+		);
 	}
 });
