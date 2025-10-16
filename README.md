@@ -216,7 +216,6 @@ Support validating schema of emitted objects
 - clone still needed?
   - included in zod parse https://zod.dev/basics?id=parsing-data what about others?
 - can we keep the array syntax as a backup? if not, then the "no validation" syntax would be weird, like {"$.foo": null}
-- is the JSONPath type worth it? is it even working in array and object mode?
 
 wildcardKeys - how does it work with types?
 

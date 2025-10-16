@@ -50,8 +50,13 @@ type JSONPathsObject = Partial<
 	Record<JSONPath, StandardSchemaV1 | null | undefined>
 >;
 
+// Without this, `createJSONParserStream({x: null})` is not a type error because TypeScript doesn't have exact object types
+type NoExtras<T, U> = T & {
+	[K in keyof T as K extends keyof U ? K : never]: T[K];
+} & { [K in keyof T as K extends keyof U ? never : K]: never };
+
 export function createJSONParserStream<T extends JSONPathsObject>(
-	jsonPaths: T,
+	jsonPaths: NoExtras<T, JSONPathsObject>,
 	options?: {
 		multi?: boolean;
 	},

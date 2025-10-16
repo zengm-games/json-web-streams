@@ -78,3 +78,13 @@ test("Array input -> types of values are unknown", async () => {
 		)[]
 	>(chunks);
 });
+
+test("makeReadableStreamFromJson parameter is being checked as JSONPath", async () => {
+	try {
+		// @ts-expect-error
+		createJSONParserStream(["x"]);
+
+		// @ts-expect-error
+		createJSONParserStream({ x: null });
+	} catch {}
+});
