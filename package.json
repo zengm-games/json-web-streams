@@ -17,7 +17,11 @@
 		"lint": "npm-run-all --parallel lint:oxlint lint:tsc",
 		"lint:oxlint": "oxlint --type-aware",
 		"lint:tsc": "tsc",
+		"prepare": "husky",
 		"test": "vitest"
+	},
+	"lint-staged": {
+		"*.{js,cjs,mjs,jsx,json,scss,ts,cts,mts,tsx,md}": "prettier --write"
 	},
 	"dependencies": {
 		"jsonpath-rfc9535": "^1.3.0"
@@ -25,6 +29,8 @@
 	"devDependencies": {
 		"@ianvs/prettier-plugin-sort-imports": "^4.7.0",
 		"@types/node": "^24.7.2",
+		"husky": "^9.1.7",
+		"lint-staged": "^16.2.4",
 		"npm-run-all2": "^8.0.4",
 		"oxlint": "^1.23.0",
 		"oxlint-tsgolint": "^0.2.0",
