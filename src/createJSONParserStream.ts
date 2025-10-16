@@ -1,3 +1,4 @@
+import type { StandardSchemaV1 } from "@standard-schema/spec";
 import JSONParserText, { type Stack } from "./JSONParserText.ts";
 import {
 	jsonPathToQueryPath,
@@ -45,6 +46,7 @@ const isEqual = (x: QueryPath[number], y: QueryPath[number] | undefined) => {
 	return x.type === "wildcard";
 };
 
+/*
 // Convert string literal to number literal
 type ToNumber<T extends string> = T extends `${infer N extends number}`
 	? N
@@ -54,40 +56,77 @@ type ToNumber<T extends string> = T extends `${infer N extends number}`
 type IndexedUnion<T extends readonly unknown[]> = {
 	[I in keyof T]: I extends `${number}`
 		? {
-				index: ToNumber<I & string>;
+				jsonPath: JSONPath;
 				value: T[I];
 				wildcardKeys?: string[];
 			}
 		: never;
 }[number];
+*/
 
-export class JSONParserStream<
-	T extends readonly unknown[] = unknown[],
-> extends TransformStream<string, IndexedUnion<T>> {
+export const createJSONParserStream = <
+	JSONPathsObject extends Partial<
+		Record<JSONPath, StandardSchemaV1 | null | undefined>
+	> = Record<JSONPath, never>,
+>(
+	jsonPaths: JSONPathsObject,
+) => {
+	return new JSONParserStream<JSONPathsObject>(jsonPaths);
+};
+
+class JSONParserStream<
+	JSONPathsObject extends Partial<
+		Record<JSONPath, StandardSchemaV1 | null | undefined>
+	>,
+> extends TransformStream<
+	string,
+	{
+		jsonPath: JSONPath;
+		value: unknown;
+		wildcardKeys?: string[];
+	}
+> {
 	_parser: JSONParserText;
 
 	constructor(
-		jsonPaths: Readonly<[...{ [K in keyof T]: JSONPath }]>,
+		jsonPaths: JSONPathsObject,
 		options?: {
 			multi?: boolean;
 		},
 	) {
 		let parser: JSONParserText;
-		const queryPaths = jsonPaths.map(jsonPathToQueryPath);
 		const multi = options?.multi ?? false;
 
-		const wildcardIndexesAll = queryPaths.map((queryPath) => {
-			const indexes = [];
+		const queryInfos = new Map<
+			JSONPath,
+			{
+				jsonPath: JSONPath;
+				queryPath: QueryPath;
+				schema: StandardSchemaV1 | null | undefined;
+				wildcardIndexes: number[] | undefined;
+			}
+		>();
+		for (const [key, schema] of Object.entries(jsonPaths)) {
+			const jsonPath = key as JSONPath;
+			const queryPath = jsonPathToQueryPath(jsonPath);
+
+			let wildcardIndexes: number[] | undefined;
 			for (const [i, component] of queryPath.entries()) {
 				if (component.type === "wildcard") {
-					indexes.push(i);
+					if (wildcardIndexes === undefined) {
+						wildcardIndexes = [];
+					}
+					wildcardIndexes.push(i);
 				}
 			}
 
-			if (indexes.length > 0) {
-				return indexes;
-			}
-		});
+			queryInfos.set(jsonPath, {
+				jsonPath,
+				queryPath,
+				schema: schema,
+				wildcardIndexes,
+			});
+		}
 
 		super({
 			start(controller) {
@@ -100,17 +139,39 @@ export class JSONParserStream<
 						// console.log("stack", stack);
 
 						let keep = false;
-						for (const [i, queryPath] of queryPaths.entries()) {
+						for (const {
+							jsonPath,
+							queryPath,
+							schema,
+							wildcardIndexes,
+						} of queryInfos.values()) {
 							if (queryPath.every((x, j) => isEqual(x, path[j]))) {
 								if (path.length === queryPath.length) {
 									// Exact match of queryPath - emit record, and we don't need to keep it any more for this queryPath
 
-									// structuredClone is needed in case this object is emitted elsewhere as part of another object - they should not be linked as parent/child, that would be confusing. But as a quick optimization, if there's only one queryPath, we don't need to clone because there is no other query to overlap with.
-									const valueToEmit =
-										queryPaths.length === 1 ? value : structuredClone(value);
+									let valueToEmit;
+									if (schema) {
+										const result = schema["~standard"].validate(value);
+										if (result instanceof Promise) {
+											throw new TypeError(
+												"Schema validation must be synchronous",
+											);
+										}
 
-									const wildcardIndexes = wildcardIndexesAll[i];
-									let wildcardKeys;
+										// if the `issues` field exists, the validation failed
+										if (result.issues) {
+											throw new Error(JSON.stringify(result.issues, null, 2));
+										}
+
+										valueToEmit = result.value;
+									} else {
+										// structuredClone is needed in case this object is emitted elsewhere as part of another object - they should not be linked as parent/child, that would be confusing. But as a quick optimization, if there's only one queryPath, we don't need to clone because there is no other query to overlap with.
+										valueToEmit =
+											queryInfos.size === 1 ? value : structuredClone(value);
+									}
+									console.log("valueToEmit", value, valueToEmit);
+
+									let wildcardKeys: string[] | undefined;
 									if (wildcardIndexes) {
 										if (wildcardIndexes) {
 											for (const index of wildcardIndexes) {
@@ -127,15 +188,15 @@ export class JSONParserStream<
 
 									if (wildcardKeys) {
 										controller.enqueue({
-											index: i,
+											jsonPath,
 											value: valueToEmit,
 											wildcardKeys,
-										} as any);
+										});
 									} else {
 										controller.enqueue({
-											index: i,
+											jsonPath,
 											value: valueToEmit,
-										} as any);
+										});
 									}
 								} else {
 									// Matches queryPath, but is nested deeper - still building the record to emit later

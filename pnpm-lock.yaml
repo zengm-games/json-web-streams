@@ -15,6 +15,9 @@ importers:
       '@ianvs/prettier-plugin-sort-imports':
         specifier: ^4.7.0
         version: 4.7.0(prettier@3.6.2)
+      '@standard-schema/spec':
+        specifier: ^1.0.0
+        version: 1.0.0
       '@types/node':
         specifier: ^24.7.2
         version: 24.7.2
@@ -48,6 +51,9 @@ importers:
       vitest:
         specifier: ^3.2.4
         version: 3.2.4(@types/node@24.7.2)(jiti@2.6.1)(yaml@2.8.1)
+      zod:
+        specifier: ^4.1.12
+        version: 4.1.12
 
 packages:
 
@@ -562,6 +568,9 @@ packages:
     resolution: {integrity: sha512-bf9PtUa0u8IXDVxzRToFQKsNCRz9qLYfR/MpECxl4mRoWYjAeFjgxj1XdZr2M/GNVpT05p+LgQOHopYDlUu6/w==}
     cpu: [x64]
     os: [win32]
+
+  '@standard-schema/spec@1.0.0':
+    resolution: {integrity: sha512-m2bOd0f2RT9k8QJx1JN85cZYyH1RqFBdlwtkSlf4tBDYLCiiZnv1fIIwacK6cqwXavOydf0NPToMQgpKq+dVlA==}
 
   '@tybys/wasm-util@0.10.1':
     resolution: {integrity: sha512-9tTaPJLSiejZKx+Bmog4uSubteqTvFrVrURwkmHixBo0G4seD0zUxp98E1DzUBJxLQ3NPwXrGKDiVjwx/DpPsg==}
@@ -1216,6 +1225,9 @@ packages:
     engines: {node: '>= 14.6'}
     hasBin: true
 
+  zod@4.1.12:
+    resolution: {integrity: sha512-JInaHOamG8pt5+Ey8kGmdcAcg3OL9reK8ltczgHTAwNhMys/6ThXHityHxVV2p3fkw/c+MAvBHFVYHFZDmjMCQ==}
+
 snapshots:
 
   '@babel/code-frame@7.27.1':
@@ -1552,6 +1564,8 @@ snapshots:
 
   '@rollup/rollup-win32-x64-msvc@4.52.4':
     optional: true
+
+  '@standard-schema/spec@1.0.0': {}
 
   '@tybys/wasm-util@0.10.1':
     dependencies:
@@ -2198,3 +2212,5 @@ snapshots:
       strip-ansi: 7.1.2
 
   yaml@2.8.1: {}
+
+  zod@4.1.12: {}

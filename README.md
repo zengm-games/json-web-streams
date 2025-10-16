@@ -206,9 +206,16 @@ output jsonPath or index? or both?
 
 Support validating schema of emitted objects
 
+- https://github.com/standard-schema/standard-schema
 - use this to determine the type of emitted objects too, rather than generic
 - how does this work with wildcardKeys, might want to use that to apply different types
 - could this replace the generic class parameter? if so, maybe add back multiIndex
+- can this also support arbitray TypeScript type guards? or read the return type of a function or something?
+- https://github.com/standard-schema/standard-schema?tab=readme-ov-file#how-do-i-accept-standard-schemas-in-my-library
+- do i need to support async? https://github.com/standard-schema/standard-schema?tab=readme-ov-file#how-to-only-allow-synchronous-validation
+- clone still needed?
+  - included in zod parse https://zod.dev/basics?id=parsing-data what about others?
+- can we keep the array syntax as a backup? if not, then the "no validation" syntax would be weird, like {"$.foo": null}
 
 wildcardKeys - how does it work with types?
 
