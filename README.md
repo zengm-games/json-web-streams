@@ -1,6 +1,6 @@
 # json-web-streams
 
-Streaming JSON parser built on top of the Web Streams API, so it works in web browsers and Node.js.
+Streaming JSON parser built on top of the Web Streams API, so it works in web browsers, Node.js, and many other environments.
 
 ## Installation
 
@@ -119,6 +119,7 @@ Output from `JSONParserStream` has this format:
 {
     value: unknown,
     index: number,
+    wildcardKeys?: string[],
 }
 ```
 
@@ -144,6 +145,20 @@ const records = await Array.fromAsync(stream, (chunk) => chunk.value);
 ```
 
 The children of `foo` have `index: 0` and the children of `bar` have `index: 1`.
+
+`wildcardKeys` is defined when you have a wildcard in an object (not an array) somewhere in your JSONPath. For example:
+
+```ts
+// readableStream emits { foo: [1, 2], bar: ["a", "b", "c"] }
+const stream = readableStream.pipeThrough(new JSONParserStream(["$[*]"]));
+const records = await Array.fromAsync(stream, (chunk) => chunk.value);
+// records now contains [
+// 	{ value: [1, 2], index: 0, wildcardKeys: ["foo"] },
+// 	{ value: ["a", "b", "c"], index: 1, wildcardKeys: ["bar"] },
+// ]
+```
+
+The purpose of `wildcardKeys` is to allow you to easily distinguish different types of objects. `wildcardKeys` has one entry for each wildcard object in your JSONPath query.
 
 #### TypeScript for `JSONParserStream` output
 
@@ -192,13 +207,10 @@ output jsonPath or index? or both?
 Support validating schema of emitted objects
 
 - use this to determine the type of emitted objects too, rather than generic
+- how does this work with wildcardKeys, might want to use that to apply different types
+- could this replace the generic class parameter? if so, maybe add back multiIndex
 
-add example of wildcard object to docs, including emitting keys
-
-move test files inline
-
-- merge multi/parsing/streaming into one
-- no custom include/exclude setting
+wildcardKeys - how does it work with types?
 
 benchmark?
 
