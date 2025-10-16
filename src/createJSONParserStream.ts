@@ -64,25 +64,21 @@ export function createJSONParserStream<T extends readonly JSONPath[]>(
 ): JSONParserStream<{ [K in T[number]]: undefined }>;
 export function createJSONParserStream<
 	T extends JSONPathsObject | readonly JSONPath[],
+	// Not really sure why I need this so many places, but seems I do
+	ArrayInput extends Extract<T, readonly JSONPath[]>,
+	ArrayOutput extends Record<ArrayInput[number], undefined>,
 >(
 	jsonPaths: T,
 	options?: {
 		multi?: boolean;
 	},
-): JSONParserStream<
-	T extends JSONPathsObject
-		? T
-		: { [K in Extract<T, readonly JSONPath[]>[number]]: undefined }
-> {
+): JSONParserStream<T extends JSONPathsObject ? T : ArrayOutput> {
 	if (Array.isArray(jsonPaths)) {
-		const obj: { [K in Extract<T, readonly JSONPath[]>[number]]: undefined } =
-			jsonPaths.reduce(
-				(acc, path) => {
-					acc[path] = undefined;
-					return acc;
-				},
-				{} as { [K in Extract<T, readonly JSONPath[]>[number]]: undefined },
-			);
+		// Type casting in this branch is mostly because https://github.com/microsoft/TypeScript/issues/33700
+		const obj = {} as ArrayOutput;
+		for (const jsonPath of jsonPaths) {
+			(obj as any)[jsonPath] = undefined;
+		}
 		return new JSONParserStream(obj, options) as any;
 	}
 
