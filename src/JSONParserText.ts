@@ -50,7 +50,7 @@ export type Stack = {
 	mode: Mode | undefined;
 }[];
 
-type OnValue = (value: Value, stack: Stack, multiIndex: number) => void;
+type OnValue = (value: Value, stack: Stack) => void;
 
 const WHITESPACE = new Set([" ", "\t", "\n", "\r"]);
 
@@ -98,15 +98,12 @@ class JSONParserText {
 
 			// Handle any non-whitespace after the root object has closed
 			if (
+				!this.multi &&
 				this.stack.length === 0 &&
 				this.seenRootObject &&
 				!WHITESPACE.has(n)
 			) {
-				if (this.multi) {
-					this.multiIndex += 1;
-				} else {
-					return this.charError(n, i);
-				}
+				return this.charError(n, i);
 			}
 
 			if (this.tokenizerState === "START") {
@@ -370,18 +367,14 @@ class JSONParserText {
 		if (this.mode) {
 			this.state = "COMMA";
 		}
-		this.onValue(
-			value,
-			[
-				...this.stack,
-				{
-					value: this.value,
-					key: this.key,
-					mode: this.mode,
-				},
-			],
-			this.multiIndex,
-		);
+		this.onValue(value, [
+			...this.stack,
+			{
+				value: this.value,
+				key: this.key,
+				mode: this.mode,
+			},
+		]);
 	}
 
 	onToken(token: Token, value: Value, i: number) {

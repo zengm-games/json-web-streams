@@ -32,31 +32,24 @@ type ToNumber<T extends string> = T extends `${infer N extends number}`
 	: never;
 
 // Convert an array like `[number, string]` to an indexed union where the values come from the input array and the indexes come from the position in the input array: `{ value: number, index: 0 } | { value: string, index: 1 }`
-type IndexedUnion<T extends readonly unknown[], Multi extends boolean> = {
+type IndexedUnion<T extends readonly unknown[]> = {
 	[I in keyof T]: I extends `${number}`
-		? Multi extends true
-			? {
-					value: T[I];
-					index: ToNumber<I & string>;
-					multiIndex: number;
-				}
-			: {
-					value: T[I];
-					index: ToNumber<I & string>;
-				}
+		? {
+				value: T[I];
+				index: ToNumber<I & string>;
+			}
 		: never;
 }[number];
 
 export class JSONParseStream<
 	T extends readonly unknown[] = unknown[],
-	Multi extends boolean = false,
-> extends TransformStream<string, IndexedUnion<T, Multi>> {
+> extends TransformStream<string, IndexedUnion<T>> {
 	_parser: JSONParserText;
 
 	constructor(
 		jsonPaths: Readonly<[...{ [K in keyof T]: JSONPath }]>,
 		options?: {
-			multi: Multi;
+			multi?: boolean;
 		},
 	) {
 		let parser: JSONParserText;
@@ -67,7 +60,7 @@ export class JSONParseStream<
 			start(controller) {
 				parser = new JSONParserText({
 					multi,
-					onValue: (value, stack, multiIndex) => {
+					onValue: (value, stack) => {
 						const path = stackToQueryPath(stack);
 						// console.log("value", value);
 						// console.log("path", path);
@@ -82,7 +75,6 @@ export class JSONParseStream<
 									controller.enqueue({
 										value: structuredClone(value),
 										index: i,
-										multiIndex,
 									} as any);
 								} else {
 									// Matches queryPath, but is nested deeper - still building the record to emit later

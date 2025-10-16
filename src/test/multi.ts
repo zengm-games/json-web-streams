@@ -16,9 +16,9 @@ for (const separator of separators) {
 		);
 		const chunks = await Array.fromAsync(stream);
 		assert.deepStrictEqual(chunks, [
-			{ value: 1, index: 0, multiIndex: 0 },
-			{ value: 2, index: 0, multiIndex: 1 },
-			{ value: 3, index: 0, multiIndex: 3 },
+			{ value: 1, index: 0 },
+			{ value: 2, index: 0 },
+			{ value: 3, index: 0 },
 		]);
 	});
 }

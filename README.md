@@ -178,9 +178,8 @@ support JSON Lines, NDJSON, json-seq, or just multiple JSON objects, with an opt
 
 - support all these https://en.wikipedia.org/wiki/JSON_streaming#Approaches
 - remove check for seenRootObject and ignore delimeter, whatever it is. whitespace already automatically gets ignored
-- option multi: true enables all of this, and also emits multiIndex saying which row it is
+- option multi: true enables all of these
 - add to options and output docs
-- add type test - multiIndex property should only be defined if multi is true
 - is multi the best name for the option? which spec is most common, could call it that?
 
 output jsonPath or index? or both?
@@ -217,3 +216,5 @@ More JSONPath stuff https://www.rfc-editor.org/rfc/rfc9535.html
 - wildcard keys
   - emit the matched keys as an array
 - multiple selectors in bracket notation like ['foo', 'bar]
+
+Would be nice to emit multiIndex property like in e6decb064d6a8ba9594c33a5d9f9e6dc5acd74d7 but I couldn't figure out how to get it to play nice with TypeScript
