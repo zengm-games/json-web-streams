@@ -181,6 +181,7 @@ support JSON Lines, NDJSON, json-seq, or just multiple JSON objects, with an opt
 - option multi: true enables all of this, and also emits multiIndex saying which row it is
 - add to options and output docs
 - add type test - multiIndex property should only be defined if multi is true
+- is multi the best name for the option? which spec is most common, could call it that?
 
 output jsonPath or index? or both?
 
