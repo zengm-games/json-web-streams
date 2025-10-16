@@ -13,7 +13,7 @@ const stackToQueryPath = (stack: Stack): QueryPath => {
 			return { type: "key", value };
 		}
 		if (row.mode === "ARRAY") {
-			return { type: "array" };
+			return { type: "wildcard" };
 		}
 
 		throw new Error(`Unexpected mode "${row.mode}"`);
@@ -22,7 +22,8 @@ const stackToQueryPath = (stack: Stack): QueryPath => {
 
 const isEqual = (x: QueryPath[number], y: QueryPath[number] | undefined) => {
 	return (
-		x.type === y?.type && (x.type === "array" || x.value === (y as any).value)
+		x.type === y?.type &&
+		(x.type === "wildcard" || x.value === (y as any).value)
 	);
 };
 

@@ -99,7 +99,7 @@ test("confirm that we're not just reading everything into memory all the time", 
 	assert.isAbove(maxStackSize0, maxStackSize1);
 });
 
-test.only("[*] works for objects too, not just arrays", async () => {
+test("[*] works for objects too, not just arrays", async () => {
 	const json = JSON.stringify({ foo: "f", bar: "b" });
 	const stream = makeReadableStreamFromJson(json).pipeThrough(
 		new JSONParseStream(["$[*]"]),

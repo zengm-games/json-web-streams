@@ -6,7 +6,7 @@ export type QueryPath = (
 			value: string;
 	  }
 	| {
-			type: "array";
+			type: "wildcard";
 	  }
 )[];
 
@@ -26,26 +26,20 @@ export const jsonPathToQueryPath = (jsonPath: JSONPath): QueryPath => {
 			if (node.type === "MemberNameShorthand") {
 				return { type: "key", value: node.value };
 			} else if (node.type === "BracketedSelection") {
-				if (node.selectors.length === 1) {
-					const selector = node.selectors[0]!;
+				return node.selectors.map((selector) => {
 					if (selector.type === "NameSelector") {
-						return { type: "key", value: selector.value };
+						return {
+							type: "key",
+							value: selector.value,
+						};
 					} else if (selector.type === "WildcardSelector") {
-						return { type: "array" };
+						return { type: "wildcard" };
+					} else {
+						throw new Error(`Unsupported node: ${JSON.stringify(node)}`);
 					}
-				} else if (node.selectors.length > 1) {
-					return node.selectors.map((selector) => {
-						if (selector.type === "NameSelector") {
-							return {
-								type: "key",
-								value: selector.value,
-							};
-						} else {
-							throw new Error(`Unsupported node: ${JSON.stringify(node)}`);
-						}
-					});
-				}
-				throw new Error(`Unsupported node: ${JSON.stringify(node)}`);
+				});
+			} else if (node.type === "WildcardSelector") {
+				return { type: "wildcard" };
 			} else {
 				throw new Error(`${segment.type} node type not supported`);
 			}

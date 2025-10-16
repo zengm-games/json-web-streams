@@ -195,7 +195,10 @@ Support validating schema of emitted objects
 
 add example for multiple jsonPaths
 
-wildcard - emit the matched keys/indexes as an array?
+wildcards
+
+- how do we know an object matches wildcard? jsonPathToQueryPath can't know it's a wildcard like how it assumes for an array
+- emit the matched keys/indexes as an array?
 
 ## Future
 
