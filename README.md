@@ -62,7 +62,7 @@ await response.body
 
 ## API
 
-`const jsonParseStream = new JSONParseStream(jsonPaths: string[], options?: Options)`
+`const jsonParseStream = new JSONParseStream(jsonPaths: string[], options?: { multi?: boolean })`
 
 ### `jsonpaths: string[]`
 
@@ -84,7 +84,17 @@ The syntax for these strings is a subset of [JSONPath](https://en.wikipedia.org/
 
 - **Wildcard arrays** which select every element in an array. For example, with an object `{ foo: [1, 2, 3] }`, the JSONPath query `$.foo[*]` would emit the three individual numbers. If instead you have an array of objects, you can select values inside those individual objects with a query like `$.foo[*].bar`.
 
-### `options?: Options`
+### `options?: { multi?: boolean }`
+
+There exist various [JSON streaming formats](https://en.wikipedia.org/wiki/JSON_streaming) that basically make it more convenient to stream JSON by omitting the opening/closing tags and instead emitting multiple JSON objects sequentially. Some of these formats are:
+
+- JSON Lines (JSONL) aka Newline Delimited JSON (NDJSON) - JSON objects are separated by \n
+- JSON Text Sequences aka json-seq - JSON objects are separated by the unicode record separator character ␞
+- Concatenated JSON - JSON objects are simply concatenated with nothing in between.
+
+Setting `multi` to `true` enables support for all of those streaming JSON formats. It's actually a little more permissive - it allows any combination of whitespace and the unicode record separator between JSON objects.
+
+If you want to emit every one of these individual JSON objects, use the JSONPath query `$` which normally means "emit the entire object", but in `multi` mode it will emit each of the individual objects.
 
 ### `JSONParseStream` input
 
@@ -170,17 +180,13 @@ For a property inside the array (like getting all the values of `x` from `{ "foo
 
 Or if the array is at the root if the object like the initial example `[{ "x": 1 }, { "x": 2 }, { "x": 3 }]` then you'd write something like `$[*]` to emit each object, or `$[*].key` to emit just the numbers.
 
-And to collect the whole object (okay in that case you wouldn't use this library, but maybe just for testing) you just use `$`.
+And to collect the whole object (okay in that case you wouldn't use this library, but maybe just for testing, or for `multi` mode) you just use `$`.
 
 ## Plan
 
-support JSON Lines, NDJSON, json-seq, or just multiple JSON objects, with an option
-
-- support all these https://en.wikipedia.org/wiki/JSON_streaming#Approaches
-- add to options and output docs
-- is multi the best name for the option? which spec is most common, could call it that?
-
 output jsonPath or index? or both?
+
+- consider what the API would be with validator functions, might be an object with jsonPath keys and function values
 
 Support validating schema of emitted objects
 

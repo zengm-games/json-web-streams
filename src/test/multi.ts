@@ -41,3 +41,18 @@ for (const separator of separators) {
 		]);
 	});
 }
+
+test("Multiple objects emitted for $", async () => {
+	const json = "[1][2][3]";
+	const stream = makeReadableStreamFromJson(json).pipeThrough(
+		new JSONParseStream(["$"], {
+			multi: true,
+		}),
+	);
+	const chunks = await Array.fromAsync(stream);
+	assert.deepStrictEqual(chunks, [
+		{ value: [1], index: 0 },
+		{ value: [2], index: 0 },
+		{ value: [3], index: 0 },
+	]);
+});
