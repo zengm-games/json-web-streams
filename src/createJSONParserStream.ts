@@ -46,38 +46,49 @@ const isEqual = (x: QueryPath[number], y: QueryPath[number] | undefined) => {
 	return x.type === "wildcard";
 };
 
-/*
-// Convert string literal to number literal
-type ToNumber<T extends string> = T extends `${infer N extends number}`
-	? N
-	: never;
-
-// Convert an array like `[number, string]` to an indexed union where the values come from the input array and the indexes come from the position in the input array: `{ value: number, index: 0 } | { value: string, index: 1 }`
-type IndexedUnion<T extends readonly unknown[]> = {
-	[I in keyof T]: I extends `${number}`
-		? {
-				jsonPath: JSONPath;
-				value: T[I];
-				wildcardKeys?: string[];
-			}
-		: never;
-}[number];
-*/
-
 type JSONPathsObject = Partial<
 	Record<JSONPath, StandardSchemaV1 | null | undefined>
 >;
 
-export const createJSONParserStream = <
-	T extends JSONPathsObject = Record<JSONPath, never>,
+export function createJSONParserStream<T extends JSONPathsObject>(
+	jsonPaths: T,
+	options?: {
+		multi?: boolean;
+	},
+): JSONParserStream<T>;
+export function createJSONParserStream<T extends readonly JSONPath[]>(
+	jsonPaths: T,
+	options?: {
+		multi?: boolean;
+	},
+): JSONParserStream<{ [K in T[number]]: undefined }>;
+export function createJSONParserStream<
+	T extends JSONPathsObject | readonly JSONPath[],
 >(
 	jsonPaths: T,
 	options?: {
 		multi?: boolean;
 	},
-) => {
-	return new JSONParserStream<T>(jsonPaths, options);
-};
+): JSONParserStream<
+	T extends JSONPathsObject
+		? T
+		: { [K in Extract<T, readonly JSONPath[]>[number]]: undefined }
+> {
+	if (Array.isArray(jsonPaths)) {
+		const obj: { [K in Extract<T, readonly JSONPath[]>[number]]: undefined } =
+			jsonPaths.reduce(
+				(acc, path) => {
+					acc[path] = undefined;
+					return acc;
+				},
+				{} as { [K in Extract<T, readonly JSONPath[]>[number]]: undefined },
+			);
+		return new JSONParserStream(obj, options) as any;
+	}
+
+	// Type casting is needed because of https://github.com/microsoft/TypeScript/issues/17002
+	return new JSONParserStream(jsonPaths as JSONPathsObject, options);
+}
 
 class JSONParserStream<T extends JSONPathsObject> extends TransformStream<
 	string,
