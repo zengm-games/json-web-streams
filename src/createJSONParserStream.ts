@@ -46,9 +46,7 @@ const isEqual = (x: QueryPath[number], y: QueryPath[number] | undefined) => {
 	return x.type === "wildcard";
 };
 
-type JSONPathsObject = Partial<
-	Record<JSONPath, StandardSchemaV1 | null | undefined>
->;
+type JSONPathsObject = Partial<Record<JSONPath, StandardSchemaV1 | null>>;
 
 // Without this, `createJSONParserStream({x: null})` is not a type error because TypeScript doesn't have exact object types
 type NoExtras<T, U> = T & {
@@ -119,7 +117,7 @@ class JSONParserStream<T extends JSONPathsObject> extends TransformStream<
 			{
 				jsonPath: JSONPath;
 				queryPath: QueryPath;
-				schema: StandardSchemaV1 | null | undefined;
+				schema: StandardSchemaV1 | null;
 				wildcardIndexes: number[] | undefined;
 			}
 		>();
@@ -140,7 +138,7 @@ class JSONParserStream<T extends JSONPathsObject> extends TransformStream<
 			queryInfos.set(jsonPath, {
 				jsonPath,
 				queryPath,
-				schema: schema,
+				schema: schema as any,
 				wildcardIndexes,
 			});
 		}

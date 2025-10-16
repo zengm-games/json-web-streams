@@ -118,43 +118,41 @@ Output from `JSONParserStream` has this format:
 ```ts
 {
     value: unknown,
-    index: number,
+    jsonPath: JSONPath,
     wildcardKeys?: string[],
 }
 ```
 
 `value` is the value selected from one of your JSONPath queries.
 
-`index` is the index in the `jsonPaths` array for the specific JSONPath query that matched `value`.
+`jsonPath` is the JSONPath query (from the `jsonPaths` parameter of `createJSONParserStream`) that matched `value`.
 
-If you only have one JSONPath query, you can ignore `index`. But if you have more than one, `index` may be helpful when processing stream output, for example:
+If you only have one JSONPath query, you can ignore `jsonPath`. But if you have more than one, `jsonPath` may be helpful when processing stream output to distinguish between object types. For example:
 
 ```ts
 // readableStream emits { foo: [1, 2], bar: ["a", "b", "c"] }
 const stream = readableStream.pipeThrough(
 	createJSONParserStream(["$.bar[*]", "$.foo[*]"]),
 );
-const records = await Array.fromAsync(stream, (chunk) => chunk.value);
-// records now contains [
-// 	{ value: 1, index: 1 },
-// 	{ value: 2, index: 1 },
-// 	{ value: "a", index: 0 },
-// 	{ value: "b", index: 0 },
-// 	{ value: "c", index: 0 },
-// ]
+const records = await Array.fromAsync(stream);
+for (const record of records) {
+	if (record.jsonPath === "$.bar[*]") {
+		// Do something with the values from bar
+	} else {
+		// Do something with the values from foo
+	}
+}
 ```
-
-The children of `foo` have `index: 0` and the children of `bar` have `index: 1`.
 
 `wildcardKeys` is defined when you have a wildcard in an object (not an array) somewhere in your JSONPath. For example:
 
 ```ts
 // readableStream emits { foo: [1, 2], bar: ["a", "b", "c"] }
 const stream = readableStream.pipeThrough(createJSONParserStream(["$[*]"]));
-const records = await Array.fromAsync(stream, (chunk) => chunk.value);
+const records = await Array.fromAsync(stream);
 // records now contains [
-// 	{ value: [1, 2], index: 0, wildcardKeys: ["foo"] },
-// 	{ value: ["a", "b", "c"], index: 1, wildcardKeys: ["bar"] },
+// 	{ value: [1, 2], jsonPath: "$[*]", wildcardKeys: ["foo"] },
+// 	{ value: ["a", "b", "c"], jsonPath: "$[*]", wildcardKeys: ["bar"] },
 // ]
 ```
 
@@ -162,25 +160,31 @@ The purpose of `wildcardKeys` is to allow you to easily distinguish different ty
 
 #### TypeScript for `JSONParserStream` output
 
-If you know the types of the values you are emitting, you can use TypeScript. `JSONParserStream` accepts one generic type, an array of the same size as the `jsonPaths` array, where each element corresponds to the type of object emitted by each JSONPath.
+If you want to validate the objects as they stream in, json-web-streams integrates with any schema validation library that supports the [Standard Schema specification](https://github.com/standard-schema/standard-schema), such as Zod, Valibot, and ArkType. To use schema validation, then pass an object of `<JSONPath, StandardSchemaV1 | null>` rather than a `JSONPath[]` array.
 
 ```ts
+import * as z from "zod";
+
 // readableStream emits { foo: [1, 2], bar: ["a", "b", "c"] }
 const stream = readableStream.pipeThrough(
-	createJSONParserStream<string, number>(["$.bar[*]", "$.foo[*]"]),
+	createJSONParserStream({
+        "$.foo[*]": z.string(),
+        "$.bar[*]": z.number(),
+    }),
 );
-const records = await Array.fromAsync(stream, (chunk) => chunk.value);
-// type of records is [{ value: string; index: 0 } | { value: number; index: 1 }]
+const records = await Array.fromAsync(stream);
 for (const record of records) {
-	if (record.index === 0) {
-		// type of record.value is string
+	if (record.jsonPath === "$.foo[*]) {
+		// Type of record.value is string
 	} else {
-		// type of record.value is number
+		// Type of record.value is number
 	}
 }
 ```
 
-If you don't specify the generic type parameter, then the type of `record` is `[{ value: unknown; index: 0 } | { value: unknown; index: 1 }]`.
+If you only want to validate some values, use `null` rather than a schema and those values will come through as `unknown`.
+
+If you don't want to validate any values, then you can just use the simpler `JSONPath[]` syntax, which is the same as specifying a `null` validator for each JSONPath. Then all the values will have the type `unknown`.
 
 ## JSONPath examples
 
@@ -220,6 +224,8 @@ Support validating schema of emitted objects
 wildcardKeys - how does it work with types?
 
 benchmark?
+
+should examples use for await? fromAsync? pipeTo? for await with helper?
 
 ## Future
 
