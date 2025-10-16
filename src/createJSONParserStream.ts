@@ -71,31 +71,25 @@ type JSONPathsObject = Partial<
 export const createJSONParserStream = <
 	T extends JSONPathsObject = Record<JSONPath, never>,
 >(
-	jsonPaths: T | Readonly<JSONPath[]>,
+	jsonPaths: T,
 	options?: {
 		multi?: boolean;
 	},
 ) => {
-	let jsonPathsObject: JSONPathsObject;
-	if (Array.isArray(jsonPaths)) {
-		jsonPathsObject = {};
-		for (const jsonPath of jsonPaths) {
-			jsonPathsObject[jsonPath] = undefined;
-		}
-	} else {
-		jsonPathsObject = jsonPaths;
-	}
-
-	return new JSONParserStream<T>(jsonPathsObject, options);
+	return new JSONParserStream<T>(jsonPaths, options);
 };
 
 class JSONParserStream<T extends JSONPathsObject> extends TransformStream<
 	string,
 	{
-		jsonPath: JSONPath;
-		value: unknown;
-		wildcardKeys?: string[];
-	}
+		[K in keyof T]: {
+			jsonPath: K;
+			value: T[K] extends StandardSchemaV1
+				? StandardSchemaV1.InferOutput<T[K]>
+				: unknown;
+			wildcardKeys?: string[];
+		};
+	}[keyof T]
 > {
 	_parser: JSONParserText;
 
