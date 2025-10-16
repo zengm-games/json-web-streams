@@ -27,7 +27,7 @@ type TokenizerState =
 	| "NULL1"
 	| "NULL2"
 	| "NULL3"
-	| "NUMBER-" // Number startign with negative sign
+	| "NUMBER-" // Number starting with negative sign
 	| "NUMBER0" // Number with a leading 0 (either no negative sign, or after negative sign)
 	| "NUMBER" // Any other number
 	| "STRING1"

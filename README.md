@@ -102,7 +102,7 @@ Setting `multi` to `true` enables support for all of those streaming JSON format
 
 `new JSONParseStream(jsonPaths)` returns a [TransformStream](https://developer.mozilla.org/en-US/docs/Web/API/TransformStream), meaning that it receives some input (e.g. from a ReadableStream) and emits some output (e.g. to a WritableStream).
 
-Input to `JSONParseStream` must be strings. If you have a stream emitting some binary encoded text (such as from `fetch`), then you can pipe it through `TextDecoderStream` first:
+Input to `JSONParseStream` must be strings. If you have a stream emitting some binary encoded text (such as from `fetch`), pipe it through `TextDecoderStream` first:
 
 ```ts
 const response = await fetch("https://example.com/data.json");
@@ -218,6 +218,5 @@ More JSONPath stuff https://www.rfc-editor.org/rfc/rfc9535.html
   - @ referencing this object
   - $ referencing root object
 - .. deep scan
-- multiple selectors in bracket notation like ['foo', 'bar]
 
 Would be nice to emit multiIndex property like in e6decb064d6a8ba9594c33a5d9f9e6dc5acd74d7 but I couldn't figure out how to get it to play nice with TypeScript
