@@ -17,3 +17,13 @@ test("Different child segment syntaxes are supported the same", async () => {
 		assert.deepStrictEqual(queryPath, normal, bracket);
 	}
 });
+
+test("Wildcards", async () => {
+	const normal = jsonPathToQueryPath("$.foo[*]");
+	const brackets: JSONPath[] = ["$.foo.*", "$['foo',*]"];
+
+	for (const bracket of brackets) {
+		const queryPath = jsonPathToQueryPath(bracket);
+		assert.deepStrictEqual(queryPath, normal, bracket);
+	}
+});

@@ -80,9 +80,9 @@ but you can have as many as you want:
 
 The syntax for these strings is a subset of [JSONPath](https://en.wikipedia.org/wiki/JSONPath). Currently the only supported components are:
 
-- **Child segments** which are like accessing a property in a JS object. For instance if you have an object like `{ foo: { bar: 5 } }`, then `$.foo.bar` refers to the value `5`. You can also write this in the more verbose bracket notation like `$["foo"]["bar"]`, which is useful if your key names include characters that need escaping. You can also mix them like `$.foo["bar"]` or use single quotes like `$['foo']['bar']` - all of these JSONPath queries have the same meaning.
+- **Name selectors** which are like accessing a property in a JS object. For instance if you have an object like `{ "foo": { bar: 5 } }`, then `$.foo.bar` refers to the value `5`. You can also write this in the more verbose bracket notation like `$["foo"]["bar"]`, which is useful if your key names include characters that need escaping. You can also mix them like `$.foo["bar"]` or use single quotes like `$['foo']['bar']` - all of these JSONPath queries have the same meaning.
 
-- **Wildcard arrays** which select every element in an array. For example, with an object `{ foo: [1, 2, 3] }`, the JSONPath query `$.foo[*]` would emit the three individual numbers. If instead you have an array of objects, you can select values inside those individual objects with a query like `$.foo[*].bar`.
+- **Wildcard selectors** which select every value in an array or object. For example, with an object `{ "foo": [1, 2, 3] }`, the JSONPath query `$.foo[*]` would emit the three individual numbers. If instead you have an array of objects, you can select values inside those individual objects with a query like `$.foo[*].bar`.
 
 ### `options?: { multi?: boolean }`
 
@@ -195,9 +195,7 @@ Support validating schema of emitted objects
 
 add example for multiple jsonPaths
 
-$[*] should select all keys of an object
-
-- update docs
+wildcard - emit the matched keys/indexes as an array?
 
 ## Future
 
@@ -218,8 +216,6 @@ More JSONPath stuff https://www.rfc-editor.org/rfc/rfc9535.html
   - @ referencing this object
   - $ referencing root object
 - .. deep scan
-- wildcard keys
-  - emit the matched keys as an array
 - multiple selectors in bracket notation like ['foo', 'bar]
 
 Would be nice to emit multiIndex property like in e6decb064d6a8ba9594c33a5d9f9e6dc5acd74d7 but I couldn't figure out how to get it to play nice with TypeScript

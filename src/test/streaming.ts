@@ -98,3 +98,25 @@ test("confirm that we're not just reading everything into memory all the time", 
 	// The first stream should use more memory than the second
 	assert.isAbove(maxStackSize0, maxStackSize1);
 });
+
+test.only("[*] works for objects too, not just arrays", async () => {
+	const json = JSON.stringify({ foo: "f", bar: "b" });
+	const stream = makeReadableStreamFromJson(json).pipeThrough(
+		new JSONParseStream(["$[*]"]),
+	);
+	const chunks = await Array.fromAsync(stream);
+	assert.deepStrictEqual(chunks, [
+		{ value: "f", index: 0 },
+		{ value: "b", index: 0 },
+	]);
+
+	const json2 = JSON.stringify({ x: { foo: "f", bar: "b" } });
+	const stream2 = makeReadableStreamFromJson(json2).pipeThrough(
+		new JSONParseStream(["$.x[*]"]),
+	);
+	const chunks2 = await Array.fromAsync(stream2);
+	assert.deepStrictEqual(chunks2, [
+		{ value: "f", index: 0 },
+		{ value: "b", index: 0 },
+	]);
+});
