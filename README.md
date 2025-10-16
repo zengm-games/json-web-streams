@@ -52,17 +52,15 @@ await response.body
 > 	console.log(value);
 > }
 > ```
->
-> Another handy function is `Array.fromAsync` which you can use like:
->
-> ```js
-> const values = await Array.fromAsync(stream, (chunk) => chunk.value);
-> // values now contains [{ "x": 1 }, { "x": 2 }, { "x": 3 }]
-> ```
 
 ## API
 
-`const jsonParseStream = new JSONParseStream(jsonPaths: string[], options?: { multi?: boolean })`
+```js
+const jsonParseStream = new JSONParseStream(
+    jsonPaths: string[],
+    options?: { multi?: boolean },
+);
+```
 
 ### `jsonpaths: string[]`
 
@@ -80,9 +78,12 @@ but you can have as many as you want:
 
 The syntax for these strings is a subset of [JSONPath](https://en.wikipedia.org/wiki/JSONPath). Currently the only supported components are:
 
-- **Name selectors** which are like accessing a property in a JS object. For instance if you have an object like `{ "foo": { bar: 5 } }`, then `$.foo.bar` refers to the value `5`. You can also write this in the more verbose bracket notation like `$["foo"]["bar"]`, which is useful if your key names include characters that need escaping. You can also mix them like `$.foo["bar"]` or use single quotes like `$['foo']['bar']` - all of these JSONPath queries have the same meaning.
+- **Name selectors** which are like accessing a property in a JS object. For instance if you have an object like `{ "foo": { bar: 5 } }`, then `$.foo.bar` refers to the value `5`. You can also write this in the more verbose bracket notation like `$["foo"]["bar"]` or `$["foo", "bar"]`, which is useful if your key names include characters that need escaping. You can also mix them like `$.foo["bar"]` or use single quotes like `$['foo']['bar']` - all of these JSONPath queries have the same meaning.
 
-- **Wildcard selectors** which select every value in an array or object. For example, with an object `{ "foo": [1, 2, 3] }`, the JSONPath query `$.foo[*]` would emit the three individual numbers. If instead you have an array of objects, you can select values inside those individual objects with a query like `$.foo[*].bar`.
+- **Wildcard selectors** which select every value in an array or object. For object values, with an object like `{ "foo": { "a": 1, "b": 2, "c": 3 } }`, the JSONPath query `$.foo[*]` would emit the three individual numbers `1`, `2`, and `3`. And for array values, with an object `{ "foo": [1, 2, 3] }`, the same JSONPath query `$.foo[*]` would emit those same values.
+
+> [!TIP]
+> You can combine these selectors as deep as you want. For instance, if instead you have an array of objects rather than numbers like in the previous example, you can select values inside those individual objects with a query like `$.foo[*].bar`.
 
 ### `options?: { multi?: boolean }`
 
@@ -175,7 +176,7 @@ If you don't specify the generic type parameter, then the type of `record` is `[
 { "foo": [{ "x": 1 }, { "x": 2 }, { "x": 3 }] }
 ```
 
-It would emit `{ "x": 1 }`, `{ "x": 2 }`, and `{ "x": 3 }`.
+It would emit `{ x: 1 }`, `{ x: 2 }`, and `{ x: 3 }`.
 
 For a property inside the array (like getting all the values of `x` from `{ "foo": [{ "x": 1 }, { "x": 2 }, { "x": 3 }] }`), you'd write it as `$.foo[*].x` and it would emit the values `1`, `2`, and `3`.
 
@@ -193,20 +194,17 @@ Support validating schema of emitted objects
 
 - use this to determine the type of emitted objects too, rather than generic
 
-add example for multiple jsonPaths
+emit the matched wildcard keys/indexes as an array?
 
-wildcards
-
-- how do we know an object matches wildcard? jsonPathToQueryPath can't know it's a wildcard like how it assumes for an array
-- emit the matched keys/indexes as an array?
+- add example of wildcard object to docs
 
 ## Future
 
-stringify
+JSONStringifyStream - Whenever I've had to do this in the past, it winds up being some messy ad hoc thing, but also it's a lot easier to write than messy ad hoc parsing code. So this is less valuable than JSONParseStream, and I'm less sure what the API should be.
 
 More JSONPath stuff https://www.rfc-editor.org/rfc/rfc9535.html
 
-- in array
+- in array (stackToQueryPath will need to get more specific than assuming every array is "wildcard")
   - index
   - negative index
   - slice with one side unbounded

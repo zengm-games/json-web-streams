@@ -20,11 +20,29 @@ const stackToQueryPath = (stack: Stack): QueryPath => {
 	});
 };
 
+// x - from JSONPath query
+// y - from parsing JSON data
 const isEqual = (x: QueryPath[number], y: QueryPath[number] | undefined) => {
-	return (
-		x.type === y?.type &&
-		(x.type === "wildcard" || x.value === (y as any).value)
-	);
+	if (!y) {
+		return false;
+	}
+
+	if (x.type === y?.type) {
+		if (x.type === "wildcard") {
+			// Both are wildcard, meaning we're looking for wildcard and found array
+			return true;
+		}
+
+		// Both must be key, in which case they are equal if the value of the key is the same
+		if (x.value === (y as any).value) {
+			return true;
+		}
+
+		return false;
+	}
+
+	// One is wildcard and the other is key. This could still be a match if the wildcard is being used to get all the values of an object, rather than array. In this case, wildcard would be on x, since x is from the supplied JSONPath query.
+	return x.type === "wildcard";
 };
 
 // Convert string literal to number literal

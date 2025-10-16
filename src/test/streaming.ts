@@ -1,5 +1,6 @@
 import { assert, test } from "vitest";
 import { JSONParseStream } from "../JSONParseStream.ts";
+import type { JSONPath } from "../jsonPathToQueryPath.ts";
 import { makeReadableStreamFromJson } from "./utils.ts";
 
 const json = JSON.stringify([{ foo: [1, 2] }, { bar: [{ x: 3 }, { x: 4 }] }]);
@@ -100,23 +101,26 @@ test("confirm that we're not just reading everything into memory all the time", 
 });
 
 test("[*] works for objects too, not just arrays", async () => {
-	const json = JSON.stringify({ foo: "f", bar: "b" });
-	const stream = makeReadableStreamFromJson(json).pipeThrough(
-		new JSONParseStream(["$[*]"]),
-	);
-	const chunks = await Array.fromAsync(stream);
-	assert.deepStrictEqual(chunks, [
-		{ value: "f", index: 0 },
-		{ value: "b", index: 0 },
-	]);
+	const cases: {
+		jsonPath: JSONPath;
+		data: unknown;
+	}[] = [
+		{
+			jsonPath: "$[*]",
+			data: { foo: "f", bar: "b" },
+		},
+		{
+			jsonPath: "$.x[*]",
+			data: { x: { foo: "f", bar: "b" } },
+		},
+	];
 
-	const json2 = JSON.stringify({ x: { foo: "f", bar: "b" } });
-	const stream2 = makeReadableStreamFromJson(json2).pipeThrough(
-		new JSONParseStream(["$.x[*]"]),
-	);
-	const chunks2 = await Array.fromAsync(stream2);
-	assert.deepStrictEqual(chunks2, [
-		{ value: "f", index: 0 },
-		{ value: "b", index: 0 },
-	]);
+	for (const { jsonPath, data } of cases) {
+		const json = JSON.stringify(data);
+		const stream = makeReadableStreamFromJson(json).pipeThrough(
+			new JSONParseStream([jsonPath]),
+		);
+		const values = await Array.fromAsync(stream, (x) => x.value);
+		assert.deepStrictEqual(values, ["f", "b"]);
+	}
 });
