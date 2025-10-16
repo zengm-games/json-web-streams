@@ -72,6 +72,9 @@ export const createJSONParserStream = <
 	T extends JSONPathsObject = Record<JSONPath, never>,
 >(
 	jsonPaths: T | Readonly<JSONPath[]>,
+	options?: {
+		multi?: boolean;
+	},
 ) => {
 	let jsonPathsObject: JSONPathsObject;
 	if (Array.isArray(jsonPaths)) {
@@ -83,7 +86,7 @@ export const createJSONParserStream = <
 		jsonPathsObject = jsonPaths;
 	}
 
-	return new JSONParserStream<T>(jsonPathsObject);
+	return new JSONParserStream<T>(jsonPathsObject, options);
 };
 
 class JSONParserStream<T extends JSONPathsObject> extends TransformStream<
@@ -257,3 +260,5 @@ class JSONParserStream<T extends JSONPathsObject> extends TransformStream<
 		this._parser = parser!;
 	}
 }
+
+export type { JSONParserStream };

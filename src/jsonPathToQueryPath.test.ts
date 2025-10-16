@@ -1,16 +1,16 @@
 import { assert, test } from "vitest";
-import { jsonPathToQueryPath, type JSONPath } from "./jsonPathToQueryPath.ts";
+import { jsonPathToQueryPath } from "./jsonPathToQueryPath.ts";
 
 test("Different child segment syntaxes are supported the same", async () => {
 	const normal = jsonPathToQueryPath("$.foo.bar");
-	const brackets: JSONPath[] = [
+	const brackets = [
 		"$['foo']['bar']",
 		'$["foo"]["bar"]',
 		"$.foo['bar']",
 		"$['foo'].bar",
 		"$['foo','bar']",
 		"$['foo', 'bar']",
-	];
+	] as const;
 
 	for (const bracket of brackets) {
 		const queryPath = jsonPathToQueryPath(bracket);
@@ -20,7 +20,7 @@ test("Different child segment syntaxes are supported the same", async () => {
 
 test("Wildcards", async () => {
 	const normal = jsonPathToQueryPath("$.foo[*]");
-	const brackets: JSONPath[] = ["$.foo.*", "$['foo',*]"];
+	const brackets = ["$.foo.*", "$['foo',*]"] as const;
 
 	for (const bracket of brackets) {
 		const queryPath = jsonPathToQueryPath(bracket);

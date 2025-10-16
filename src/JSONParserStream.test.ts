@@ -1,7 +1,10 @@
 import { glob, readFile } from "node:fs/promises";
 import path from "node:path";
 import { assert, describe, test } from "vitest";
-import { createJSONParserStream } from "./createJSONParserStream.ts";
+import {
+	createJSONParserStream,
+	type JSONParserStream,
+} from "./createJSONParserStream.ts";
 import type { JSONPath } from "./jsonPathToQueryPath.ts";
 import { makeReadableStreamFromJson } from "./test/utils.ts";
 
@@ -60,66 +63,69 @@ describe("Parsing", async () => {
 
 describe("Streaming", () => {
 	const json = JSON.stringify([{ foo: [1, 2] }, { bar: [{ x: 3 }, { x: 4 }] }]);
+	const jsonPath = "$[*].foo[*]";
 
 	test("streams values", async () => {
 		const stream = makeReadableStreamFromJson(json).pipeThrough(
-			createJSONParserStream(["$[*].foo[*]"]),
+			createJSONParserStream([jsonPath]),
 		);
 		const chunks = await Array.fromAsync(stream);
 		assert.deepStrictEqual(chunks, [
-			{ value: 1, index: 0 },
-			{ value: 2, index: 0 },
+			{ value: 1, jsonPath },
+			{ value: 2, jsonPath },
 		]);
 	});
 
 	test("streams values from two paths", async () => {
+		const jsonPaths = ["$[*].foo[*]", "$[*].bar[*]"] as const;
+
 		const stream = makeReadableStreamFromJson(json).pipeThrough(
-			createJSONParserStream(["$[*].foo[*]", "$[*].bar[*]"]),
+			createJSONParserStream(jsonPaths),
 		);
 		const chunks = await Array.fromAsync(stream);
 		assert.deepStrictEqual(chunks, [
-			{ value: 1, index: 0 },
-			{ value: 2, index: 0 },
-			{ value: { x: 3 }, index: 1 },
-			{ value: { x: 4 }, index: 1 },
+			{ value: 1, jsonPath: jsonPaths[0] },
+			{ value: 2, jsonPath: jsonPaths[0] },
+			{ value: { x: 3 }, jsonPath: jsonPaths[1] },
+			{ value: { x: 4 }, jsonPath: jsonPaths[1] },
 		]);
 	});
 
 	test("streams values from two paths, where one is nested in the other", async () => {
+		const jsonPaths = ["$[*].bar[*]", "$[*].bar[*].x"] as const;
+
 		const stream = makeReadableStreamFromJson(json).pipeThrough(
-			createJSONParserStream(["$[*].bar[*]", "$[*].bar[*].x"]),
+			createJSONParserStream(jsonPaths),
 		);
 		const chunks = await Array.fromAsync(stream);
 		assert.deepStrictEqual(chunks, [
-			{ value: 3, index: 1 },
-			{ value: { x: 3 }, index: 0 },
-			{ value: 4, index: 1 },
-			{ value: { x: 4 }, index: 0 },
+			{ value: 3, jsonPath: jsonPaths[1] },
+			{ value: { x: 3 }, jsonPath: jsonPaths[0] },
+			{ value: 4, jsonPath: jsonPaths[1] },
+			{ value: { x: 4 }, jsonPath: jsonPaths[0] },
 		]);
 	});
 
 	test("nested objects are distinct objects, one is not the child of the other", async () => {
 		const json = JSON.stringify({ foo: { bar: 1 } });
 		const stream = makeReadableStreamFromJson(json).pipeThrough(
-			createJSONParserStream<[any, any]>(["$.foo", "$"]),
+			createJSONParserStream(["$.foo", "$"]),
 		);
-		const chunks = await Array.fromAsync(stream, (row) => row.value);
+		const chunks: any[] = await Array.fromAsync(stream, (row) => row.value);
 		assert.deepStrictEqual(chunks, [{ bar: 1 }, { foo: { bar: 1 } }]);
 		chunks[0].bar = 2;
 		assert.deepStrictEqual(chunks, [{ bar: 2 }, { foo: { bar: 1 } }]);
 	});
 
 	test("streams values from non-overlapping paths at different levels, without clobbering each other", async () => {
+		const jsonPaths = ["$.foo", "$.bar[*]"] as const;
 		const stream = makeReadableStreamFromJson(
 			'{"bar": [1,2,3], "foo": [{"key": 1}]}',
-		).pipeThrough(
-			// Why does order of jsonPaths matter?
-			createJSONParserStream(["$.foo", "$.bar[*]"]),
-		);
+		).pipeThrough(createJSONParserStream(jsonPaths));
 
 		const chunks = await Array.fromAsync(stream);
 		const foo = chunks
-			.filter((chunk) => chunk.index === 0)
+			.filter((chunk) => chunk.jsonPath === jsonPaths[0])
 			.map((chunk) => chunk.value);
 		assert.deepStrictEqual(foo, [[{ key: 1 }]]);
 	});
@@ -128,7 +134,7 @@ describe("Streaming", () => {
 		let maxStackSize = 0;
 
 		// Monkey patch to track the size of the stack
-		const monkeyPatch = (stream: JSONParserStream) => {
+		const monkeyPatch = (stream: JSONParserStream<any>) => {
 			const prevOnValue = stream._parser.onValue;
 			stream._parser.onValue = (value, stack) => {
 				// This is not a very accurate way to get stack size, but works enough for these purposes.
@@ -179,12 +185,12 @@ describe("Streaming", () => {
 			const values = await Array.fromAsync(stream);
 			assert.deepStrictEqual(values, [
 				{
-					index: 0,
+					jsonPath,
 					value: "f",
 					wildcardKeys: ["foo"],
 				},
 				{
-					index: 0,
+					jsonPath,
 					value: "b",
 					wildcardKeys: ["bar"],
 				},
@@ -194,13 +200,13 @@ describe("Streaming", () => {
 
 	test("[*][*] for object and array", async () => {
 		// These are all equivalent
-		const jsonPaths: JSONPath[] = [
+		const jsonPaths = [
 			"$.*.*",
 			"$[*].*",
 			"$.*[*]",
 			"$[*][*]",
 			"$[*,*]",
-		];
+		] as const;
 
 		const data = {
 			foo: [1, 2],
@@ -217,22 +223,22 @@ describe("Streaming", () => {
 				values,
 				[
 					{
-						index: 0,
+						jsonPath,
 						value: 1,
 						wildcardKeys: ["foo"],
 					},
 					{
-						index: 0,
+						jsonPath,
 						value: 2,
 						wildcardKeys: ["foo"],
 					},
 					{
-						index: 0,
+						jsonPath,
 						value: 3,
 						wildcardKeys: ["bar"],
 					},
 					{
-						index: 0,
+						jsonPath,
 						value: 4,
 						wildcardKeys: ["bar"],
 					},
@@ -251,16 +257,17 @@ describe("multi option", () => {
 			const json = objects
 				.map((object) => JSON.stringify(object))
 				.join(separator);
+			const jsonPath = "$.a";
 			const stream = makeReadableStreamFromJson(json).pipeThrough(
-				createJSONParserStream(["$.a"], {
+				createJSONParserStream([jsonPath], {
 					multi: true,
 				}),
 			);
 			const chunks = await Array.fromAsync(stream);
 			assert.deepStrictEqual(chunks, [
-				{ value: 1, index: 0 },
-				{ value: 2, index: 0 },
-				{ value: 3, index: 0 },
+				{ value: 1, jsonPath },
+				{ value: 2, jsonPath },
+				{ value: 3, jsonPath },
 			]);
 		});
 
@@ -270,32 +277,34 @@ describe("multi option", () => {
 				separator +
 				objects.map((object) => JSON.stringify(object)).join(separator) +
 				separator;
+			const jsonPath = "$.a";
 			const stream = makeReadableStreamFromJson(json).pipeThrough(
-				createJSONParserStream(["$.a"], {
+				createJSONParserStream([jsonPath], {
 					multi: true,
 				}),
 			);
 			const chunks = await Array.fromAsync(stream);
 			assert.deepStrictEqual(chunks, [
-				{ value: 1, index: 0 },
-				{ value: 2, index: 0 },
-				{ value: 3, index: 0 },
+				{ value: 1, jsonPath },
+				{ value: 2, jsonPath },
+				{ value: 3, jsonPath },
 			]);
 		});
 	}
 
 	test("Multiple objects emitted for $", async () => {
 		const json = "[1][2][3]";
+		const jsonPath = "$";
 		const stream = makeReadableStreamFromJson(json).pipeThrough(
-			createJSONParserStream(["$"], {
+			createJSONParserStream([jsonPath], {
 				multi: true,
 			}),
 		);
 		const chunks = await Array.fromAsync(stream);
 		assert.deepStrictEqual(chunks, [
-			{ value: [1], index: 0 },
-			{ value: [2], index: 0 },
-			{ value: [3], index: 0 },
+			{ value: [1], jsonPath },
+			{ value: [2], jsonPath },
+			{ value: [3], jsonPath },
 		]);
 	});
 });
