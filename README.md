@@ -20,7 +20,7 @@ You can just `JSON.parse` it and then do whatever you want. But what if it's so 
 
 By using json-web-streams, you can stream through the JSON object without having to read it all into memory. Here's an example that prints out each object as it is parsed:
 
-```js
+```ts
 import { JSONParseStream } from "json-web-streams";
 
 const response = await fetch("https://example.com/data.json");
@@ -44,7 +44,7 @@ await response.body
 > [!TIP]
 > If you don't have to support Safari, [most other environments](https://caniuse.com/mdn-api_readablestream_--asynciterator) let you use a nicer syntax for consuming stream output as an async iterator:
 >
-> ```js
+> ```ts
 > const stream = response.body
 > 	.pipeThrough(new TextDecoderStream())
 > 	.pipeThrough(new JSONParseStream(["$[*]"]));
@@ -55,7 +55,7 @@ await response.body
 
 ## API
 
-```js
+```ts
 const jsonParseStream = new JSONParseStream(
     jsonPaths: string[],
     options?: { multi?: boolean },
@@ -66,13 +66,13 @@ const jsonParseStream = new JSONParseStream(
 
 The first argument to `JSONParseStream` is an array of strings specifying what objects to emit from the stream. In many cases, you'll just have one value in this array, like:
 
-```js
+```ts
 ["$.foo[*]"];
 ```
 
 but you can have as many as you want:
 
-```js
+```ts
 ["$.foo[*]", "$.bar", "$.bar.baz"];
 ```
 
@@ -104,7 +104,7 @@ Setting `multi` to `true` enables support for all of those streaming JSON format
 
 Input to `JSONParseStream` must be strings. If you have a stream emitting some binary encoded text (such as from `fetch`), then you can pipe it through `TextDecoderStream` first:
 
-```js
+```ts
 const response = await fetch("https://example.com/data.json");
 const stream = response.body
 	.pipeThrough(new TextDecoderStream())
@@ -115,7 +115,7 @@ const stream = response.body
 
 Output from `JSONParseStream` has this format:
 
-```js
+```ts
 {
     value: unknown,
     index: number,
@@ -128,7 +128,7 @@ Output from `JSONParseStream` has this format:
 
 If you only have one JSONPath query, you can ignore `index`. But if you have more than one, `index` may be helpful when processing stream output, for example:
 
-```js
+```ts
 // readableStream emits { foo: [1, 2], bar: ["a", "b", "c"] }
 const stream = readableStream.pipeThrough(
 	new JSONParseStream(["$.bar[*]", "$.foo[*]"]),
@@ -149,11 +149,10 @@ The children of `foo` have `index: 0` and the children of `bar` have `index: 1`.
 
 If you know the types of the values you are emitting, you can use TypeScript. `JSONParseStream` accepts one generic type, an array of the same size as the `jsonPaths` array, where each element corresponds to the type of object emitted by each JSONPath.
 
-```js
+```ts
 // readableStream emits { foo: [1, 2], bar: ["a", "b", "c"] }
 const stream = readableStream.pipeThrough(
-	new JSONParseStream() < string,
-	number > ["$.bar[*]", "$.foo[*]"],
+	new JSONParseStream<string, number>(["$.bar[*]", "$.foo[*]"]),
 );
 const records = await Array.fromAsync(stream, (chunk) => chunk.value);
 // type of records is [{ value: string; index: 0 } | { value: number; index: 1 }]
@@ -197,6 +196,8 @@ Support validating schema of emitted objects
 emit the matched wildcard keys/indexes as an array?
 
 - add example of wildcard object to docs
+
+rename JSONParserStream, like TextDecoderStream?
 
 ## Future
 
