@@ -3,7 +3,7 @@ import * as z from "zod";
 import { createJSONParserStream } from "./createJSONParserStream.ts";
 import { makeReadableStreamFromJson } from "./test/utils.ts";
 
-test("Generic types match input indexes", async () => {
+test("Object input with validator -> types of values are known", async () => {
 	const json = "[]";
 	const stream = makeReadableStreamFromJson(json).pipeThrough(
 		createJSONParserStream({ "$.foo": z.string(), "$.bar": z.number() }),
@@ -22,7 +22,6 @@ test("Generic types match input indexes", async () => {
 		)[]
 	>(chunks);
 
-	// Can discriminate in loop
 	for (const chunk of chunks) {
 		if (chunk.jsonPath === "$.foo") {
 			assertType<string>(chunk.value);
@@ -32,7 +31,35 @@ test("Generic types match input indexes", async () => {
 	}
 });
 
-test("With no generic, output values are `unknown`", async () => {
+test("Object input without validator -> types of values are unknown", async () => {
+	const json = "[]";
+	const stream = makeReadableStreamFromJson(json).pipeThrough(
+		createJSONParserStream({ "$.foo": z.string(), "$.bar": null }),
+	);
+	const chunks = await Array.fromAsync(stream);
+	assertType<
+		(
+			| {
+					jsonPath: "$.foo";
+					value: string;
+			  }
+			| {
+					jsonPath: "$.bar";
+					value: unknown;
+			  }
+		)[]
+	>(chunks);
+
+	for (const chunk of chunks) {
+		if (chunk.jsonPath === "$.foo") {
+			assertType<string>(chunk.value);
+		} else {
+			assertType<unknown>(chunk.value);
+		}
+	}
+});
+
+test("Array input -> types of values are unknown", async () => {
 	const json = "[]";
 	const stream = makeReadableStreamFromJson(json).pipeThrough(
 		createJSONParserStream(["$.foo", "$.bar"]),
