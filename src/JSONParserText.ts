@@ -106,6 +106,9 @@ class JSONParserText {
 				return this.charError(n, i);
 			}
 
+			if (this.multi && this.stack.length === 0 && this.seenRootObject) {
+			}
+
 			if (this.tokenizerState === "START") {
 				if (n === "{") {
 					this.onToken("LEFT_BRACE", "{", i);
@@ -138,7 +141,11 @@ class JSONParserText {
 				} else if (n >= "1" && n <= "9") {
 					this.string = n;
 					this.tokenizerState = "NUMBER";
-				} else if (!WHITESPACE.has(n)) {
+				} else if (WHITESPACE.has(n)) {
+					// Ignore whitespace
+				} else if (n === "␞" && this.multi && this.stack.length === 0) {
+					// Ignore json-seq separator in multi mode
+				} else {
 					return this.charError(n, i);
 				}
 			} else if (this.tokenizerState === "STRING1") {

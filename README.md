@@ -177,8 +177,6 @@ And to collect the whole object (okay in that case you wouldn't use this library
 support JSON Lines, NDJSON, json-seq, or just multiple JSON objects, with an option
 
 - support all these https://en.wikipedia.org/wiki/JSON_streaming#Approaches
-- remove check for seenRootObject and ignore delimeter, whatever it is. whitespace already automatically gets ignored
-- option multi: true enables all of these
 - add to options and output docs
 - is multi the best name for the option? which spec is most common, could call it that?
 
