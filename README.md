@@ -42,7 +42,7 @@ await response.body
 ```
 
 > [!TIP]
-> If you don't have to support Safari, [most other environments](https://caniuse.com/mdn-api_readablestream_--asynciterator) let you use a nicer syntax for consuming stream output:
+> If you don't have to support Safari, [most other environments](https://caniuse.com/mdn-api_readablestream_--asynciterator) let you use a nicer syntax for consuming stream output as an async iterator:
 >
 > ```js
 > const stream = response.body
@@ -53,7 +53,7 @@ await response.body
 > }
 > ```
 >
-> Another nice function is `Array.fromAsync` which you can use like:
+> Another handy function is `Array.fromAsync` which you can use like:
 >
 > ```js
 > const values = await Array.fromAsync(stream, (chunk) => chunk.value);
@@ -94,7 +94,8 @@ There exist various [JSON streaming formats](https://en.wikipedia.org/wiki/JSON_
 
 Setting `multi` to `true` enables support for all of those streaming JSON formats. It's actually a little more permissive - it allows any combination of whitespace and the unicode record separator between JSON objects.
 
-If you want to emit every one of these individual JSON objects, use the JSONPath query `$` which normally means "emit the entire object", but in `multi` mode it will emit each of the individual objects.
+> [!TIP]
+> If you want to emit every one of these individual JSON objects, use the JSONPath query `$` which normally means "emit the entire object", but in `multi` mode it will emit each of the individual objects.
 
 ### `JSONParseStream` input
 
@@ -195,6 +196,8 @@ Support validating schema of emitted objects
 add example for multiple jsonPaths
 
 $[*] should select all keys of an object
+
+- update docs
 
 ## Future
 
