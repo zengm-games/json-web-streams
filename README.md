@@ -1,6 +1,6 @@
 # json-web-streams
 
-Streaming JSON parser built on top of web streams.
+Streaming JSON parser built on top of the Web Streams API, so it works in web browsers and Node.js.
 
 ## Installation
 
