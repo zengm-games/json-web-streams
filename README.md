@@ -21,12 +21,12 @@ You can just `JSON.parse` it and then do whatever you want. But what if it's so 
 By using json-web-streams, you can stream through the JSON object without having to read it all into memory. Here's an example that prints out each object as it is parsed:
 
 ```ts
-import { JSONParserStream } from "json-web-streams";
+import { createJSONParserStream } from "json-web-streams";
 
 const response = await fetch("https://example.com/data.json");
 await response.body
 	.pipeThrough(new TextDecoderStream())
-	.pipeThrough(new JSONParserStream(["$[*]"]))
+	.pipeThrough(createJSONParserStream(["$[*]"]))
 	.pipeTo(
 		new WritableStream({
 			write({ value }) {
@@ -47,7 +47,7 @@ await response.body
 > ```ts
 > const stream = response.body
 > 	.pipeThrough(new TextDecoderStream())
-> 	.pipeThrough(new JSONParserStream(["$[*]"]));
+> 	.pipeThrough(createJSONParserStream(["$[*]"]));
 > for await (const { value } of stream) {
 > 	console.log(value);
 > }
@@ -56,7 +56,7 @@ await response.body
 ## API
 
 ```ts
-const jsonParserStream = new JSONParserStream(
+const jsonParserStream = createJSONParserStream(
     jsonPaths: string[],
     options?: { multi?: boolean },
 );
@@ -100,7 +100,7 @@ Setting `multi` to `true` enables support for all of those streaming JSON format
 
 ### `JSONParserStream` input
 
-`new JSONParserStream(jsonPaths)` returns a [TransformStream](https://developer.mozilla.org/en-US/docs/Web/API/TransformStream), meaning that it receives some input (e.g. from a ReadableStream) and emits some output (e.g. to a WritableStream).
+`createJSONParserStream(jsonPaths)` returns a [TransformStream](https://developer.mozilla.org/en-US/docs/Web/API/TransformStream), meaning that it receives some input (e.g. from a ReadableStream) and emits some output (e.g. to a WritableStream).
 
 Input to `JSONParserStream` must be strings. If you have a stream emitting some binary encoded text (such as from `fetch`), pipe it through `TextDecoderStream` first:
 
@@ -108,7 +108,7 @@ Input to `JSONParserStream` must be strings. If you have a stream emitting some 
 const response = await fetch("https://example.com/data.json");
 const stream = response.body
 	.pipeThrough(new TextDecoderStream())
-	.pipeThrough(new JSONParserStream(["$.foo[*]"]));
+	.pipeThrough(createJSONParserStream(["$.foo[*]"]));
 ```
 
 ### `JSONParserStream` output
@@ -132,7 +132,7 @@ If you only have one JSONPath query, you can ignore `index`. But if you have mor
 ```ts
 // readableStream emits { foo: [1, 2], bar: ["a", "b", "c"] }
 const stream = readableStream.pipeThrough(
-	new JSONParserStream(["$.bar[*]", "$.foo[*]"]),
+	createJSONParserStream(["$.bar[*]", "$.foo[*]"]),
 );
 const records = await Array.fromAsync(stream, (chunk) => chunk.value);
 // records now contains [
@@ -150,7 +150,7 @@ The children of `foo` have `index: 0` and the children of `bar` have `index: 1`.
 
 ```ts
 // readableStream emits { foo: [1, 2], bar: ["a", "b", "c"] }
-const stream = readableStream.pipeThrough(new JSONParserStream(["$[*]"]));
+const stream = readableStream.pipeThrough(createJSONParserStream(["$[*]"]));
 const records = await Array.fromAsync(stream, (chunk) => chunk.value);
 // records now contains [
 // 	{ value: [1, 2], index: 0, wildcardKeys: ["foo"] },
@@ -167,7 +167,7 @@ If you know the types of the values you are emitting, you can use TypeScript. `J
 ```ts
 // readableStream emits { foo: [1, 2], bar: ["a", "b", "c"] }
 const stream = readableStream.pipeThrough(
-	new JSONParserStream<string, number>(["$.bar[*]", "$.foo[*]"]),
+	createJSONParserStream<string, number>(["$.bar[*]", "$.foo[*]"]),
 );
 const records = await Array.fromAsync(stream, (chunk) => chunk.value);
 // type of records is [{ value: string; index: 0 } | { value: number; index: 1 }]

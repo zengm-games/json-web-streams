@@ -177,7 +177,6 @@ class JSONParserStream<T extends JSONPathsObject> extends TransformStream<
 										valueToEmit =
 											queryInfos.size === 1 ? value : structuredClone(value);
 									}
-									console.log("valueToEmit", value, valueToEmit);
 
 									let wildcardKeys: string[] | undefined;
 									if (wildcardIndexes) {
