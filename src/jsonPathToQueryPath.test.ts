@@ -1,5 +1,5 @@
 import { assert, test } from "vitest";
-import { jsonPathToQueryPath, type JSONPath } from "../jsonPathToQueryPath.ts";
+import { jsonPathToQueryPath, type JSONPath } from "./jsonPathToQueryPath.ts";
 
 test("Different child segment syntaxes are supported the same", async () => {
 	const normal = jsonPathToQueryPath("$.foo.bar");

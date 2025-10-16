@@ -1,6 +1,6 @@
 import { assertType, test } from "vitest";
-import { JSONParserStream } from "../JSONParserStream.ts";
-import { makeReadableStreamFromJson } from "./utils.ts";
+import { JSONParserStream } from "./JSONParserStream.ts";
+import { makeReadableStreamFromJson } from "./test/utils.ts";
 
 test("Generic types match input indexes", async () => {
 	const json = "[]";
