@@ -1,8 +1,12 @@
 {
 	"name": "json-web-streams",
 	"version": "0.0.1",
-	"description": "",
-	"keywords": [],
+	"description": "Streaming JSON parser built on top of the Web Streams API, so it works in web browsers, Node.js, and many other environments",
+	"keywords": [
+		"web streams",
+		"TransformStream",
+		"JSON"
+	],
 	"license": "Apache-2.0",
 	"author": "",
 	"type": "module",
