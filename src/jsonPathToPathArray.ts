@@ -1,6 +1,6 @@
 import parser from "jsonpath-rfc9535/parser";
 
-export type QueryPath = (
+export type PathArray = (
 	| {
 			type: "key";
 			value: string;
@@ -13,7 +13,7 @@ export type QueryPath = (
 // Would be nice to be more strict than this, but I think it's not possible
 export type JSONPath = "$" | `$${"." | "["}${string}`;
 
-export const jsonPathToQueryPath = (jsonPath: JSONPath): QueryPath => {
+export const jsonPathToPathArray = (jsonPath: JSONPath): PathArray => {
 	let parsed;
 	try {
 		parsed = parser(jsonPath);

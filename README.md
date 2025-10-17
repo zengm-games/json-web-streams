@@ -252,7 +252,7 @@ Would be nice to emit multiIndex property like in e6decb064d6a8ba9594c33a5d9f9e6
 
 More JSONPath stuff https://www.rfc-editor.org/rfc/rfc9535.html
 
-- in array (stackToQueryPath will need to get more specific than assuming every array is "wildcard")
+- in array (stackToPathArray will need to get more specific than assuming every array is "wildcard")
   - index
   - negative index
   - slice with one side unbounded

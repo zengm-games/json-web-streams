@@ -1,12 +1,12 @@
 import type { StandardSchemaV1 } from "@standard-schema/spec";
 import JSONParserText, { type Stack } from "./JSONParserText.ts";
 import {
-	jsonPathToQueryPath,
+	jsonPathToPathArray,
 	type JSONPath,
-	type QueryPath,
-} from "./jsonPathToQueryPath.ts";
+	type PathArray,
+} from "./jsonPathToPathArray.ts";
 
-const stackToQueryPath = (stack: Stack): QueryPath => {
+const stackToPathArray = (stack: Stack): PathArray => {
 	return stack.slice(1).map((row) => {
 		if (row.mode === "OBJECT" && row.key !== undefined) {
 			// row.key is number | string, but when mode is OBJECT it is always a string, number is for ARRAY
@@ -23,7 +23,7 @@ const stackToQueryPath = (stack: Stack): QueryPath => {
 
 // x - from JSONPath query
 // y - from parsing JSON data
-const isEqual = (x: QueryPath[number], y: QueryPath[number] | undefined) => {
+const isEqual = (x: PathArray[number], y: PathArray[number] | undefined) => {
 	if (!y) {
 		return false;
 	}
@@ -77,27 +77,24 @@ export class JSONParseStream<
 		let parser: JSONParserText;
 		const multi = options?.multi ?? false;
 
-		const queryInfos = new Map<
-			JSONPath,
-			{
-				queryPath: QueryPath;
-				schema: StandardSchemaV1 | undefined;
-				wildcardIndexes: number[] | undefined;
-			}
-		>();
-		for (const row of jsonPaths) {
-			let jsonPath;
+		const jsonPathInfos: {
+			path: JSONPath;
+			pathArray: PathArray;
+			schema: StandardSchemaV1 | undefined;
+			wildcardIndexes: number[] | undefined;
+		}[] = jsonPaths.map((row) => {
+			let path;
 			let schema;
 			if (typeof row === "string") {
-				jsonPath = row;
+				path = row;
 			} else {
-				jsonPath = row.path;
+				path = row.path;
 				schema = row.schema;
 			}
-			const queryPath = jsonPathToQueryPath(jsonPath);
+			const pathArray = jsonPathToPathArray(path);
 
 			let wildcardIndexes: number[] | undefined;
-			for (const [i, component] of queryPath.entries()) {
+			for (const [i, component] of pathArray.entries()) {
 				if (component.type === "wildcard") {
 					if (wildcardIndexes === undefined) {
 						wildcardIndexes = [];
@@ -106,31 +103,34 @@ export class JSONParseStream<
 				}
 			}
 
-			queryInfos.set(jsonPath, {
-				queryPath,
+			return {
+				path,
+				pathArray,
 				schema,
 				wildcardIndexes,
-			});
-		}
+			};
+		});
 
 		super({
 			start(controller) {
 				parser = new JSONParserText({
 					multi,
 					onValue: (value, stack) => {
-						const path = stackToQueryPath(stack);
+						const stackPathArray = stackToPathArray(stack);
 						// console.log("value", value);
 						// console.log("path", path);
 						// console.log("stack", stack);
 
 						let keep = false;
-						for (const [
-							jsonPath,
-							{ queryPath, schema, wildcardIndexes },
-						] of queryInfos) {
-							if (queryPath.every((x, j) => isEqual(x, path[j]))) {
-								if (path.length === queryPath.length) {
-									// Exact match of queryPath - emit record, and we don't need to keep it any more for this queryPath
+						for (const {
+							path,
+							pathArray,
+							schema,
+							wildcardIndexes,
+						} of jsonPathInfos) {
+							if (pathArray.every((x, j) => isEqual(x, stackPathArray[j]))) {
+								if (stackPathArray.length === pathArray.length) {
+									// Exact match of pathArray - emit record, and we don't need to keep it any more for this pathArray
 
 									let valueToEmit;
 									if (schema) {
@@ -155,7 +155,7 @@ export class JSONParseStream<
 									if (wildcardIndexes) {
 										if (wildcardIndexes) {
 											for (const index of wildcardIndexes) {
-												const pathComponent = path[index];
+												const pathComponent = stackPathArray[index];
 												if (pathComponent?.type === "key") {
 													if (!wildcardKeys) {
 														wildcardKeys = [];
@@ -166,25 +166,25 @@ export class JSONParseStream<
 										}
 									}
 
-									// Casting to any is needed because queryInfos is broader than it should be - it should be constrained so jsonPath is one of the input paths, and valueToEmit is the correct type if a schema is present
+									// Casting to any is needed because jsonPathInfos is broader than it should be - it should be constrained so jsonPath is one of the input paths, and valueToEmit is the correct type if a schema is present
 									if (wildcardKeys) {
 										controller.enqueue({
-											jsonPath,
+											jsonPath: path,
 											value: valueToEmit,
 											wildcardKeys,
 										} as any);
 									} else {
 										controller.enqueue({
-											jsonPath,
+											jsonPath: path,
 											value: valueToEmit,
 										} as any);
 									}
 								} else {
-									// Matches queryPath, but is nested deeper - still building the record to emit later
+									// Matches pathArray, but is nested deeper - still building the record to emit later
 									keep = true;
 								}
 							} else {
-								// Doesn't match queryPath, don't need to keep, but only worry about arrays/objects. Or delete this branch and it will overwrite these primitive values too.
+								// Doesn't match pathArray, don't need to keep, but only worry about arrays/objects. Or delete this branch and it will overwrite these primitive values too.
 								const type = typeof value;
 								if (
 									type === "string" ||

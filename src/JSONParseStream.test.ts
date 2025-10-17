@@ -2,7 +2,7 @@ import { glob, readFile } from "node:fs/promises";
 import path from "node:path";
 import { assert, describe, test } from "vitest";
 import { JSONParseStream } from "./JSONParseStream.ts";
-import type { JSONPath } from "./jsonPathToQueryPath.ts";
+import type { JSONPath } from "./jsonPathToPathArray.ts";
 import { makeReadableStreamFromJson } from "./test/utils.ts";
 
 describe("Parsing", async () => {
