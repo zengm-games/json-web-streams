@@ -226,8 +226,6 @@ benchmark?
 
 should examples use for await? fromAsync? pipeTo? for await with helper?
 
-export types from index.ts
-
 More examples
 
 something about why to use this library (web streams, well tested, JSONPath, integrated schema validation / TypeScript)

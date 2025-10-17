@@ -46,15 +46,17 @@ const isEqual = (x: QueryPath[number], y: QueryPath[number] | undefined) => {
 	return x.type === "wildcard";
 };
 
-type JSONPathsObject = Partial<Record<JSONPath, StandardSchemaV1 | null>>;
+export type JSONPathsWithSchemas = Partial<
+	Record<JSONPath, StandardSchemaV1 | null>
+>;
 
 // Without this, `createJSONParseStream({x: null})` is not a type error because TypeScript doesn't have exact object types
 type NoExtras<T, U> = T & {
 	[K in keyof T as K extends keyof U ? K : never]: T[K];
 } & { [K in keyof T as K extends keyof U ? never : K]: never };
 
-export function createJSONParseStream<T extends JSONPathsObject>(
-	jsonPaths: NoExtras<T, JSONPathsObject>,
+export function createJSONParseStream<T extends JSONPathsWithSchemas>(
+	jsonPaths: NoExtras<T, JSONPathsWithSchemas>,
 	options?: {
 		multi?: boolean;
 	},
@@ -66,7 +68,7 @@ export function createJSONParseStream<T extends readonly JSONPath[]>(
 	},
 ): JSONParseStream<{ [K in T[number]]: undefined }>;
 export function createJSONParseStream<
-	T extends JSONPathsObject | readonly JSONPath[],
+	T extends JSONPathsWithSchemas | readonly JSONPath[],
 	// Not really sure why I need this so many places, but seems I do
 	ArrayInput extends Extract<T, readonly JSONPath[]>,
 	ArrayOutput extends Record<ArrayInput[number], undefined>,
@@ -75,7 +77,7 @@ export function createJSONParseStream<
 	options?: {
 		multi?: boolean;
 	},
-): JSONParseStream<T extends JSONPathsObject ? T : ArrayOutput> {
+): JSONParseStream<T extends JSONPathsWithSchemas ? T : ArrayOutput> {
 	if (Array.isArray(jsonPaths)) {
 		// Type casting in this branch is mostly because https://github.com/microsoft/TypeScript/issues/33700
 		const obj = {} as ArrayOutput;
@@ -86,10 +88,10 @@ export function createJSONParseStream<
 	}
 
 	// Type casting is needed because of https://github.com/microsoft/TypeScript/issues/17002
-	return new JSONParseStream(jsonPaths as JSONPathsObject, options);
+	return new JSONParseStream(jsonPaths as JSONPathsWithSchemas, options);
 }
 
-class JSONParseStream<T extends JSONPathsObject> extends TransformStream<
+class JSONParseStream<T extends JSONPathsWithSchemas> extends TransformStream<
 	string,
 	{
 		[K in keyof T]: {
