@@ -42,7 +42,7 @@ await response.body
 ```
 
 > [!TIP]
-> If you don't have to support Safari, [most other environments](https://caniuse.com/mdn-api_readablestream_--asynciterator) let you use a nicer syntax for consuming stream output as an async iterator:
+> If you don't have to support Safari, [most other environments](https://caniuse.com/mdn-api_readablestream_--asynciterator) let you use this nice syntax for consuming stream output as an async iterator:
 >
 > ```ts
 > const stream = response.body
@@ -136,30 +136,36 @@ Output from `JSONParseStream` has this format:
 If you only have one JSONPath query, you can ignore `jsonPath`. But if you have more than one, `jsonPath` may be helpful when processing stream output to distinguish between object types. For example:
 
 ```ts
-// readableStream emits { foo: [1, 2], bar: ["a", "b", "c"] }
-const stream = readableStream.pipeThrough(
-	createJSONParseStream(["$.bar[*]", "$.foo[*]"]),
-);
-const records = await Array.fromAsync(stream);
-for (const record of records) {
-	if (record.jsonPath === "$.bar[*]") {
-		// Do something with the values from bar
-	} else {
-		// Do something with the values from foo
-	}
-}
+// readableStream emits { "foo": [1, 2], "bar": ["a", "b", "c"] }
+await readableStream
+	.pipeThrough(createJSONParseStream(["$.bar[*]", "$.foo[*]"]))
+	.pipeTo(
+		new WritableStream({
+			write(record) {
+				if (record.jsonPath === "$.bar[*]") {
+					// Do something with the values from bar
+				} else {
+					// Do something with the values from foo
+				}
+			},
+		}),
+	);
 ```
 
 `wildcardKeys` is defined when you have a wildcard in an object (not an array) somewhere in your JSONPath. For example:
 
 ```ts
-// readableStream emits { foo: [1, 2], bar: ["a", "b", "c"] }
-const stream = readableStream.pipeThrough(createJSONParseStream(["$[*]"]));
-const records = await Array.fromAsync(stream);
-// records now contains [
-// 	{ value: [1, 2], jsonPath: "$[*]", wildcardKeys: ["foo"] },
-// 	{ value: ["a", "b", "c"], jsonPath: "$[*]", wildcardKeys: ["bar"] },
-// ]
+// readableStream emits { "foo": [1, 2], "bar": ["a", "b", "c"] }
+await readableStream.pipeThrough(createJSONParseStream(["$[*]"])).pipeTo(
+	new WritableStream({
+		write(record) {
+			console.log(record);
+		},
+	}),
+);
+// Output:
+// { value: [1, 2], jsonPath: "$[*]", wildcardKeys: ["foo"] },
+// { value: ["a", "b", "c"], jsonPath: "$[*]", wildcardKeys: ["bar"] },
 ```
 
 The purpose of `wildcardKeys` is to allow you to easily distinguish different types of objects. `wildcardKeys` has one entry for each wildcard object in your JSONPath query.
@@ -176,21 +182,25 @@ If you want to validate the objects as they stream in, json-web-streams integrat
 ```ts
 import * as z from "zod";
 
-// readableStream emits { foo: [1, 2], bar: ["a", "b", "c"] }
-const stream = readableStream.pipeThrough(
-	createJSONParseStream({
-		"$.foo[*]": z.string(),
-		"$.bar[*]": z.number(),
-	}),
-);
-const records = await Array.fromAsync(stream);
-for (const record of records) {
-	if (record.jsonPath === "$.foo[*]") {
-		// Type of record.value is string
-	} else {
-		// Type of record.value is number
-	}
-}
+// readableStream emits { "foo": [1, 2], "bar": ["a", "b", "c"] }
+await readableStream
+	.pipeThrough(
+		createJSONParseStream({
+			"$.foo[*]": z.string(),
+			"$.bar[*]": z.number(),
+		}),
+	)
+	.pipeTo(
+		new WritableStream({
+			write(record) {
+				if (record.jsonPath === "$.foo[*]") {
+					// Type of record.value is string
+				} else {
+					// Type of record.value is number
+				}
+			},
+		}),
+	);
 ```
 
 If you only want to validate some values, use `null` rather than a schema and those values will come through as `unknown`.
@@ -223,8 +233,6 @@ Support validating schema of emitted objects
   - maybe https://zod.dev/api#custom is good to mention
 
 benchmark?
-
-should examples use for await? fromAsync? pipeTo? for await with helper?
 
 More examples
 
