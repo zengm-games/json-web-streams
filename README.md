@@ -1,6 +1,10 @@
 # json-web-streams
 
-Streaming JSON parser built on top of the Web Streams API, so it works in web browsers, Node.js, and many other environments.
+- **Stream large JSON files** without loading everything into memory
+- Built on the **Web Streams API** so it runs in web browsers, Node.js and more
+- Query with **JSONPath** to extract only the data you need
+- Integrated **schema validation** with full **TypeScript** support
+- Parser correctly handles the [JSON Test Suite](https://github.com/nst/JSONTestSuite) and other test cases
 
 ## Installation
 
@@ -258,15 +262,6 @@ benchmark?
 
 More examples
 
-something about why to use this library (web streams, well tested, JSONPath, integrated schema validation / TypeScript)
-
-maybe instead of object input, do (JSONPath | { path: JSONPath, schema: Schema })[]
-
-- could add back index?
-- index.ts exports?
-
-some way to validate and run code in the readme?
-
 ## Future
 
 JSONStringifyStream - Whenever I've had to do this in the past, it winds up being some messy ad hoc thing, but also it's a lot easier to write than messy ad hoc parsing code. So this is less valuable than JSONParseStream, and I'm less sure what the API should be.
@@ -290,3 +285,8 @@ More JSONPath stuff https://www.rfc-editor.org/rfc/rfc9535.html
 - .. deep scan
 
 better JSONPath type
+
+more concise examples, when browser support is better
+
+- consume with for await rather than WriteableStream
+- use ReadableStream.from rather than more verbose syntax
