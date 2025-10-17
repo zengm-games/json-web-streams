@@ -164,7 +164,12 @@ const records = await Array.fromAsync(stream);
 
 The purpose of `wildcardKeys` is to allow you to easily distinguish different types of objects. `wildcardKeys` has one entry for each wildcard object in your JSONPath query.
 
-#### TypeScript for `JSONParserStream` output
+> [!WARNING]
+> It is possible to have two JSONPath queries that output overlapping objects, like if your data is `{ "foo": [1, 2] }` and you query for both `$` and `$.foo`. This will emit two objects: `{ foo: [1, 2] }` and `[1, 2]`. Due to how json-web-streams works internally, both of those objects share the same array instance, meaning that if the array in one is mutated it will affect the other.
+>
+> Some schema validation libraries do a deep clone of objects they validate. In that case, you won't have this issue. Otherwise, in the rare case that you query for overlapping objects, you will have to handle this problem, such as by deep cloning one of the objects.
+
+#### Schema validation and types for `JSONParserStream` output
 
 If you want to validate the objects as they stream in, json-web-streams integrates with any schema validation library that supports the [Standard Schema specification](https://github.com/standard-schema/standard-schema), such as Zod, Valibot, and ArkType. To use schema validation, then pass an object of `<JSONPath, StandardSchemaV1 | null>` rather than a `JSONPath[]` array.
 
@@ -174,13 +179,13 @@ import * as z from "zod";
 // readableStream emits { foo: [1, 2], bar: ["a", "b", "c"] }
 const stream = readableStream.pipeThrough(
 	createJSONParserStream({
-        "$.foo[*]": z.string(),
-        "$.bar[*]": z.number(),
-    }),
+		"$.foo[*]": z.string(),
+		"$.bar[*]": z.number(),
+	}),
 );
 const records = await Array.fromAsync(stream);
 for (const record of records) {
-	if (record.jsonPath === "$.foo[*]) {
+	if (record.jsonPath === "$.foo[*]") {
 		// Type of record.value is string
 	} else {
 		// Type of record.value is number
@@ -213,11 +218,9 @@ And to collect the whole object (okay in that case you wouldn't use this library
 Support validating schema of emitted objects
 
 - how does this work with wildcardKeys, might want to use that to apply different types
+  - https://zod.dev/api#custom or something, make an example/test
 - can this also support arbitray TypeScript type guards? or read the return type of a function or something?
   - maybe https://zod.dev/api#custom is good to mention
-- clone still needed?
-  - included in zod parse https://zod.dev/basics?id=parsing-data what about others?
-- can we keep the array syntax as a backup? if not, then the "no validation" syntax would be weird, like {"$.foo": null}
 
 benchmark?
 
@@ -226,10 +229,6 @@ should examples use for await? fromAsync? pipeTo? for await with helper?
 Would be nice to emit multiIndex property like in e6decb064d6a8ba9594c33a5d9f9e6dc5acd74d7 but I couldn't figure out how to get it to play nice with TypeScript
 
 export types from index.ts
-
-Some schema validation libraries clone the object when validating, but others don't.
-
-- not worth adding an option because it's rarely a problem and when it is you should probably handle it yourself, but there should be some warning in the manual about when it matters (when you have objects that overlap, and you're not using a schema library that clones when it validates - zod/valibot seem to clone, arktype seems to not)
 
 More examples
 

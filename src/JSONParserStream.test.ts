@@ -65,7 +65,7 @@ describe("Streaming", () => {
 	const json = JSON.stringify([{ foo: [1, 2] }, { bar: [{ x: 3 }, { x: 4 }] }]);
 	const jsonPath = "$[*].foo[*]";
 
-	test("streams values", async () => {
+	test("Streams values", async () => {
 		const stream = makeReadableStreamFromJson(json).pipeThrough(
 			createJSONParserStream([jsonPath]),
 		);
@@ -76,7 +76,7 @@ describe("Streaming", () => {
 		]);
 	});
 
-	test("streams values from two paths", async () => {
+	test("Streams values from two paths", async () => {
 		const jsonPaths = ["$[*].foo[*]", "$[*].bar[*]"] as const;
 
 		const stream = makeReadableStreamFromJson(json).pipeThrough(
@@ -91,7 +91,7 @@ describe("Streaming", () => {
 		]);
 	});
 
-	test("streams values from two paths, where one is nested in the other", async () => {
+	test("Streams values from two paths, where one is nested in the other", async () => {
 		const jsonPaths = ["$[*].bar[*]", "$[*].bar[*].x"] as const;
 
 		const stream = makeReadableStreamFromJson(json).pipeThrough(
@@ -106,7 +106,7 @@ describe("Streaming", () => {
 		]);
 	});
 
-	test("nested objects are distinct objects, one is not the child of the other", async () => {
+	test("Nested objects reference the same shared arrays/objects", async () => {
 		const json = JSON.stringify({ foo: { bar: 1 } });
 		const stream = makeReadableStreamFromJson(json).pipeThrough(
 			createJSONParserStream(["$.foo", "$"]),
@@ -114,10 +114,10 @@ describe("Streaming", () => {
 		const chunks: any[] = await Array.fromAsync(stream, (row) => row.value);
 		assert.deepStrictEqual(chunks, [{ bar: 1 }, { foo: { bar: 1 } }]);
 		chunks[0].bar = 2;
-		assert.deepStrictEqual(chunks, [{ bar: 2 }, { foo: { bar: 1 } }]);
+		assert.deepStrictEqual(chunks, [{ bar: 2 }, { foo: { bar: 2 } }]);
 	});
 
-	test("streams values from non-overlapping paths at different levels, without clobbering each other", async () => {
+	test("Streams values from non-overlapping paths at different levels, without clobbering each other", async () => {
 		const jsonPaths = ["$.foo", "$.bar[*]"] as const;
 		const stream = makeReadableStreamFromJson(
 			'{"bar": [1,2,3], "foo": [{"key": 1}]}',
@@ -130,7 +130,7 @@ describe("Streaming", () => {
 		assert.deepStrictEqual(foo, [[{ key: 1 }]]);
 	});
 
-	test("confirm that we're not just reading everything into memory all the time", async () => {
+	test("Confirm that we're not just reading everything into memory all the time", async () => {
 		let maxStackSize = 0;
 
 		// Monkey patch to track the size of the stack
@@ -249,7 +249,7 @@ describe("Streaming", () => {
 	});
 });
 
-describe("multi option", () => {
+describe("Multi option", () => {
 	const separators = ["", "\n", "\r\n", " ", " \n ", "␞"];
 	for (const separator of separators) {
 		test(`Multiple JSON objects with ${JSON.stringify(separator)} in between`, async () => {

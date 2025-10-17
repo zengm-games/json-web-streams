@@ -180,9 +180,7 @@ class JSONParserStream<T extends JSONPathsObject> extends TransformStream<
 
 										valueToEmit = result.value;
 									} else {
-										// structuredClone is needed in case this object is emitted elsewhere as part of another object - they should not be linked as parent/child, that would be confusing. But as a quick optimization, if there's only one queryPath, we don't need to clone because there is no other query to overlap with.
-										valueToEmit =
-											queryInfos.size === 1 ? value : structuredClone(value);
+										valueToEmit = value;
 									}
 
 									let wildcardKeys: string[] | undefined;
