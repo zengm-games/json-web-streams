@@ -242,6 +242,7 @@ maybe instead of object input, do (JSONPath | { jsonPath: JSONPath, schema: Sche
 
 - could add back index?
 - could switch black to class?
+- if we keep "path" for input, should use it for output too
 
 ## Future
 

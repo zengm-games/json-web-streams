@@ -94,7 +94,6 @@ class JSONParseStream<
 		const queryInfos = new Map<
 			JSONPath,
 			{
-				jsonPath: JSONPath;
 				queryPath: QueryPath;
 				schema: StandardSchemaV1 | undefined;
 				wildcardIndexes: number[] | undefined;
@@ -122,7 +121,6 @@ class JSONParseStream<
 			}
 
 			queryInfos.set(jsonPath, {
-				jsonPath,
 				queryPath,
 				schema,
 				wildcardIndexes,
@@ -140,12 +138,10 @@ class JSONParseStream<
 						// console.log("stack", stack);
 
 						let keep = false;
-						for (const {
+						for (const [
 							jsonPath,
-							queryPath,
-							schema,
-							wildcardIndexes,
-						} of queryInfos.values()) {
+							{ queryPath, schema, wildcardIndexes },
+						] of queryInfos) {
 							if (queryPath.every((x, j) => isEqual(x, path[j]))) {
 								if (path.length === queryPath.length) {
 									// Exact match of queryPath - emit record, and we don't need to keep it any more for this queryPath
@@ -184,17 +180,18 @@ class JSONParseStream<
 										}
 									}
 
+									// Casting to any is needed because queryInfos is broader than it should be - it should be constrained so jsonPath is one of the input paths, and valueToEmit is the correct type if a schema is present
 									if (wildcardKeys) {
 										controller.enqueue({
 											jsonPath,
 											value: valueToEmit,
 											wildcardKeys,
-										});
+										} as any);
 									} else {
 										controller.enqueue({
 											jsonPath,
 											value: valueToEmit,
-										});
+										} as any);
 									}
 								} else {
 									// Matches queryPath, but is nested deeper - still building the record to emit later
