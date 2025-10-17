@@ -48,24 +48,24 @@ const isEqual = (x: QueryPath[number], y: QueryPath[number] | undefined) => {
 
 type JSONPathsObject = Partial<Record<JSONPath, StandardSchemaV1 | null>>;
 
-// Without this, `createJSONParserStream({x: null})` is not a type error because TypeScript doesn't have exact object types
+// Without this, `createJSONParseStream({x: null})` is not a type error because TypeScript doesn't have exact object types
 type NoExtras<T, U> = T & {
 	[K in keyof T as K extends keyof U ? K : never]: T[K];
 } & { [K in keyof T as K extends keyof U ? never : K]: never };
 
-export function createJSONParserStream<T extends JSONPathsObject>(
+export function createJSONParseStream<T extends JSONPathsObject>(
 	jsonPaths: NoExtras<T, JSONPathsObject>,
 	options?: {
 		multi?: boolean;
 	},
-): JSONParserStream<T>;
-export function createJSONParserStream<T extends readonly JSONPath[]>(
+): JSONParseStream<T>;
+export function createJSONParseStream<T extends readonly JSONPath[]>(
 	jsonPaths: T,
 	options?: {
 		multi?: boolean;
 	},
-): JSONParserStream<{ [K in T[number]]: undefined }>;
-export function createJSONParserStream<
+): JSONParseStream<{ [K in T[number]]: undefined }>;
+export function createJSONParseStream<
 	T extends JSONPathsObject | readonly JSONPath[],
 	// Not really sure why I need this so many places, but seems I do
 	ArrayInput extends Extract<T, readonly JSONPath[]>,
@@ -75,21 +75,21 @@ export function createJSONParserStream<
 	options?: {
 		multi?: boolean;
 	},
-): JSONParserStream<T extends JSONPathsObject ? T : ArrayOutput> {
+): JSONParseStream<T extends JSONPathsObject ? T : ArrayOutput> {
 	if (Array.isArray(jsonPaths)) {
 		// Type casting in this branch is mostly because https://github.com/microsoft/TypeScript/issues/33700
 		const obj = {} as ArrayOutput;
 		for (const jsonPath of jsonPaths) {
 			(obj as any)[jsonPath] = undefined;
 		}
-		return new JSONParserStream(obj, options) as any;
+		return new JSONParseStream(obj, options) as any;
 	}
 
 	// Type casting is needed because of https://github.com/microsoft/TypeScript/issues/17002
-	return new JSONParserStream(jsonPaths as JSONPathsObject, options);
+	return new JSONParseStream(jsonPaths as JSONPathsObject, options);
 }
 
-class JSONParserStream<T extends JSONPathsObject> extends TransformStream<
+class JSONParseStream<T extends JSONPathsObject> extends TransformStream<
 	string,
 	{
 		[K in keyof T]: {
@@ -263,4 +263,4 @@ class JSONParserStream<T extends JSONPathsObject> extends TransformStream<
 	}
 }
 
-export type { JSONParserStream };
+export type { JSONParseStream };

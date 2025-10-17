@@ -2,9 +2,9 @@ import { glob, readFile } from "node:fs/promises";
 import path from "node:path";
 import { assert, describe, test } from "vitest";
 import {
-	createJSONParserStream,
-	type JSONParserStream,
-} from "./createJSONParserStream.ts";
+	createJSONParseStream,
+	type JSONParseStream,
+} from "./createJSONParseStream.ts";
 import type { JSONPath } from "./jsonPathToQueryPath.ts";
 import { makeReadableStreamFromJson } from "./test/utils.ts";
 
@@ -14,7 +14,7 @@ describe("Parsing", async () => {
 		let firstValue: any;
 
 		await makeReadableStreamFromJson(json)
-			.pipeThrough(createJSONParserStream(["$"]))
+			.pipeThrough(createJSONParseStream(["$"]))
 			.pipeTo(
 				new WritableStream({
 					write({ value }) {
@@ -67,7 +67,7 @@ describe("Streaming", () => {
 
 	test("Streams values", async () => {
 		const stream = makeReadableStreamFromJson(json).pipeThrough(
-			createJSONParserStream([jsonPath]),
+			createJSONParseStream([jsonPath]),
 		);
 		const chunks = await Array.fromAsync(stream);
 		assert.deepStrictEqual(chunks, [
@@ -80,7 +80,7 @@ describe("Streaming", () => {
 		const jsonPaths = ["$[*].foo[*]", "$[*].bar[*]"] as const;
 
 		const stream = makeReadableStreamFromJson(json).pipeThrough(
-			createJSONParserStream(jsonPaths),
+			createJSONParseStream(jsonPaths),
 		);
 		const chunks = await Array.fromAsync(stream);
 		assert.deepStrictEqual(chunks, [
@@ -95,7 +95,7 @@ describe("Streaming", () => {
 		const jsonPaths = ["$[*].bar[*]", "$[*].bar[*].x"] as const;
 
 		const stream = makeReadableStreamFromJson(json).pipeThrough(
-			createJSONParserStream(jsonPaths),
+			createJSONParseStream(jsonPaths),
 		);
 		const chunks = await Array.fromAsync(stream);
 		assert.deepStrictEqual(chunks, [
@@ -109,7 +109,7 @@ describe("Streaming", () => {
 	test("Nested objects reference the same shared arrays/objects", async () => {
 		const json = JSON.stringify({ foo: { bar: 1 } });
 		const stream = makeReadableStreamFromJson(json).pipeThrough(
-			createJSONParserStream(["$.foo", "$"]),
+			createJSONParseStream(["$.foo", "$"]),
 		);
 		const chunks: any[] = await Array.fromAsync(stream, (row) => row.value);
 		assert.deepStrictEqual(chunks, [{ bar: 1 }, { foo: { bar: 1 } }]);
@@ -121,7 +121,7 @@ describe("Streaming", () => {
 		const jsonPaths = ["$.foo", "$.bar[*]"] as const;
 		const stream = makeReadableStreamFromJson(
 			'{"bar": [1,2,3], "foo": [{"key": 1}]}',
-		).pipeThrough(createJSONParserStream(jsonPaths));
+		).pipeThrough(createJSONParseStream(jsonPaths));
 
 		const chunks = await Array.fromAsync(stream);
 		const foo = chunks
@@ -134,7 +134,7 @@ describe("Streaming", () => {
 		let maxStackSize = 0;
 
 		// Monkey patch to track the size of the stack
-		const monkeyPatch = (stream: JSONParserStream<any>) => {
+		const monkeyPatch = (stream: JSONParseStream<any>) => {
 			const prevOnValue = stream._parser.onValue;
 			stream._parser.onValue = (value, stack) => {
 				// This is not a very accurate way to get stack size, but works enough for these purposes.
@@ -147,14 +147,14 @@ describe("Streaming", () => {
 
 		// This stream emits the whole object ($) so it has to read the whole object into memory at some point
 		await makeReadableStreamFromJson(json)
-			.pipeThrough(monkeyPatch(createJSONParserStream(["$"])))
+			.pipeThrough(monkeyPatch(createJSONParseStream(["$"])))
 			.pipeTo(new WritableStream());
 		const maxStackSize0 = maxStackSize;
 
 		// This stream only emits part of the object, so it should use less memory than the previous stream
 		maxStackSize = 0;
 		await makeReadableStreamFromJson(json)
-			.pipeThrough(monkeyPatch(createJSONParserStream(["$[*].bar[*]"])))
+			.pipeThrough(monkeyPatch(createJSONParseStream(["$[*].bar[*]"])))
 			.pipeTo(new WritableStream());
 		const maxStackSize1 = maxStackSize;
 
@@ -180,7 +180,7 @@ describe("Streaming", () => {
 		for (const { jsonPath, data } of cases) {
 			const json = JSON.stringify(data);
 			const stream = makeReadableStreamFromJson(json).pipeThrough(
-				createJSONParserStream([jsonPath]),
+				createJSONParseStream([jsonPath]),
 			);
 			const values = await Array.fromAsync(stream);
 			assert.deepStrictEqual(values, [
@@ -216,7 +216,7 @@ describe("Streaming", () => {
 
 		for (const jsonPath of jsonPaths) {
 			const stream = makeReadableStreamFromJson(json).pipeThrough(
-				createJSONParserStream([jsonPath]),
+				createJSONParseStream([jsonPath]),
 			);
 			const values = await Array.fromAsync(stream);
 			assert.deepStrictEqual(
@@ -259,7 +259,7 @@ describe("Multi option", () => {
 				.join(separator);
 			const jsonPath = "$.a";
 			const stream = makeReadableStreamFromJson(json).pipeThrough(
-				createJSONParserStream([jsonPath], {
+				createJSONParseStream([jsonPath], {
 					multi: true,
 				}),
 			);
@@ -279,7 +279,7 @@ describe("Multi option", () => {
 				separator;
 			const jsonPath = "$.a";
 			const stream = makeReadableStreamFromJson(json).pipeThrough(
-				createJSONParserStream([jsonPath], {
+				createJSONParseStream([jsonPath], {
 					multi: true,
 				}),
 			);
@@ -296,7 +296,7 @@ describe("Multi option", () => {
 		const json = "[1][2][3]";
 		const jsonPath = "$";
 		const stream = makeReadableStreamFromJson(json).pipeThrough(
-			createJSONParserStream([jsonPath], {
+			createJSONParseStream([jsonPath], {
 				multi: true,
 			}),
 		);

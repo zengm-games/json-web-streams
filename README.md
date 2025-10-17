@@ -21,12 +21,12 @@ You can just `JSON.parse` it and then do whatever you want. But what if it's so 
 By using json-web-streams, you can stream through the JSON object without having to read it all into memory. Here's an example that prints out each object as it is parsed:
 
 ```ts
-import { createJSONParserStream } from "json-web-streams";
+import { createJSONParseStream } from "json-web-streams";
 
 const response = await fetch("https://example.com/data.json");
 await response.body
 	.pipeThrough(new TextDecoderStream())
-	.pipeThrough(createJSONParserStream(["$[*]"]))
+	.pipeThrough(createJSONParseStream(["$[*]"]))
 	.pipeTo(
 		new WritableStream({
 			write({ value }) {
@@ -47,7 +47,7 @@ await response.body
 > ```ts
 > const stream = response.body
 > 	.pipeThrough(new TextDecoderStream())
-> 	.pipeThrough(createJSONParserStream(["$[*]"]));
+> 	.pipeThrough(createJSONParseStream(["$[*]"]));
 > for await (const { value } of stream) {
 > 	console.log(value);
 > }
@@ -56,7 +56,7 @@ await response.body
 ## API
 
 ```ts
-const jsonParserStream = createJSONParserStream(
+const jsonParseStream = createJSONParseStream(
     jsonPaths: JSONPath[],
     options?: { multi?: boolean },
 );
@@ -64,7 +64,7 @@ const jsonParserStream = createJSONParserStream(
 
 ### `jsonpaths: JSONPath[]`
 
-The first argument to `JSONParserStream` is an array of strings specifying what objects to emit from the stream. The syntax for these strings is a subset of [JSONPath](https://en.wikipedia.org/wiki/JSONPath), which is a query language for JSON.
+The first argument to `JSONParseStream` is an array of strings specifying what objects to emit from the stream. The syntax for these strings is a subset of [JSONPath](https://en.wikipedia.org/wiki/JSONPath), which is a query language for JSON.
 
 (The `JSONPath` type here is just a slightly more restrictive version of a string. I wish it could completely parse and validate the JSONPath syntax, but currently it just enforces some little things like that it must start with a `$`.)
 
@@ -104,22 +104,22 @@ Setting `multi` to `true` enables support for all of those streaming JSON format
 > [!TIP]
 > If you want to emit every one of these individual JSON objects, use the JSONPath query `$` which normally means "emit the entire object", but in `multi` mode it will emit each of the individual objects.
 
-### `JSONParserStream` input
+### `JSONParseStream` input
 
-`createJSONParserStream(jsonPaths)` returns a [TransformStream](https://developer.mozilla.org/en-US/docs/Web/API/TransformStream), meaning that it receives some input (e.g. from a ReadableStream) and emits some output (e.g. to a WritableStream).
+`createJSONParseStream(jsonPaths)` returns a [TransformStream](https://developer.mozilla.org/en-US/docs/Web/API/TransformStream), meaning that it receives some input (e.g. from a ReadableStream) and emits some output (e.g. to a WritableStream).
 
-Input to `JSONParserStream` must be strings. If you have a stream emitting some binary encoded text (such as from `fetch`), pipe it through `TextDecoderStream` first:
+Input to `JSONParseStream` must be strings. If you have a stream emitting some binary encoded text (such as from `fetch`), pipe it through `TextDecoderStream` first:
 
 ```ts
 const response = await fetch("https://example.com/data.json");
 const stream = response.body
 	.pipeThrough(new TextDecoderStream())
-	.pipeThrough(createJSONParserStream(["$.foo[*]"]));
+	.pipeThrough(createJSONParseStream(["$.foo[*]"]));
 ```
 
-### `JSONParserStream` output
+### `JSONParseStream` output
 
-Output from `JSONParserStream` has this format:
+Output from `JSONParseStream` has this format:
 
 ```ts
 {
@@ -131,14 +131,14 @@ Output from `JSONParserStream` has this format:
 
 `value` is the value selected from one of your JSONPath queries.
 
-`jsonPath` is the JSONPath query (from the `jsonPaths` parameter of `createJSONParserStream`) that matched `value`.
+`jsonPath` is the JSONPath query (from the `jsonPaths` parameter of `createJSONParseStream`) that matched `value`.
 
 If you only have one JSONPath query, you can ignore `jsonPath`. But if you have more than one, `jsonPath` may be helpful when processing stream output to distinguish between object types. For example:
 
 ```ts
 // readableStream emits { foo: [1, 2], bar: ["a", "b", "c"] }
 const stream = readableStream.pipeThrough(
-	createJSONParserStream(["$.bar[*]", "$.foo[*]"]),
+	createJSONParseStream(["$.bar[*]", "$.foo[*]"]),
 );
 const records = await Array.fromAsync(stream);
 for (const record of records) {
@@ -154,7 +154,7 @@ for (const record of records) {
 
 ```ts
 // readableStream emits { foo: [1, 2], bar: ["a", "b", "c"] }
-const stream = readableStream.pipeThrough(createJSONParserStream(["$[*]"]));
+const stream = readableStream.pipeThrough(createJSONParseStream(["$[*]"]));
 const records = await Array.fromAsync(stream);
 // records now contains [
 // 	{ value: [1, 2], jsonPath: "$[*]", wildcardKeys: ["foo"] },
@@ -169,7 +169,7 @@ The purpose of `wildcardKeys` is to allow you to easily distinguish different ty
 >
 > Some schema validation libraries do a deep clone of objects they validate. In that case, you won't have this issue. Otherwise, in the rare case that you query for overlapping objects, you will have to handle this problem, such as by deep cloning one of the objects.
 
-#### Schema validation and types for `JSONParserStream` output
+#### Schema validation and types for `JSONParseStream` output
 
 If you want to validate the objects as they stream in, json-web-streams integrates with any schema validation library that supports the [Standard Schema specification](https://github.com/standard-schema/standard-schema), such as Zod, Valibot, and ArkType. To use schema validation, then pass an object of `<JSONPath, StandardSchemaV1 | null>` rather than a `JSONPath[]` array.
 
@@ -178,7 +178,7 @@ import * as z from "zod";
 
 // readableStream emits { foo: [1, 2], bar: ["a", "b", "c"] }
 const stream = readableStream.pipeThrough(
-	createJSONParserStream({
+	createJSONParseStream({
 		"$.foo[*]": z.string(),
 		"$.bar[*]": z.number(),
 	}),
@@ -226,15 +226,17 @@ benchmark?
 
 should examples use for await? fromAsync? pipeTo? for await with helper?
 
-Would be nice to emit multiIndex property like in e6decb064d6a8ba9594c33a5d9f9e6dc5acd74d7 but I couldn't figure out how to get it to play nice with TypeScript
-
 export types from index.ts
 
 More examples
 
+something about why to use this library (web streams, well tested, JSONPath, integrated schema validation / TypeScript)
+
 ## Future
 
-JSONStringifyStream - Whenever I've had to do this in the past, it winds up being some messy ad hoc thing, but also it's a lot easier to write than messy ad hoc parsing code. So this is less valuable than JSONParserStream, and I'm less sure what the API should be.
+JSONStringifyStream - Whenever I've had to do this in the past, it winds up being some messy ad hoc thing, but also it's a lot easier to write than messy ad hoc parsing code. So this is less valuable than JSONParseStream, and I'm less sure what the API should be.
+
+Would be nice to emit multiIndex property like in e6decb064d6a8ba9594c33a5d9f9e6dc5acd74d7 but the TypeScript gets complicated
 
 More JSONPath stuff https://www.rfc-editor.org/rfc/rfc9535.html
 

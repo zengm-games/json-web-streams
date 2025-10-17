@@ -1,5 +1,5 @@
 import * as z from "zod";
-import { createJSONParserStream } from "./src/createJSONParserStream.ts";
+import { createJSONParseStream } from "./src/createJSONParseStream.ts";
 import { makeReadableStreamFromJson } from "./src/test/utils.ts";
 
 // An array of data
@@ -8,7 +8,7 @@ const json =
 
 await makeReadableStreamFromJson(json)
 	.pipeThrough(
-		createJSONParserStream({
+		createJSONParseStream({
 			"$.foo[*]": z.object({
 				key: z.number(),
 			}),
@@ -24,7 +24,7 @@ await makeReadableStreamFromJson(json)
 	);
 
 await makeReadableStreamFromJson(json)
-	.pipeThrough(createJSONParserStream(["$.foo[*]", "$.bar[*]"]))
+	.pipeThrough(createJSONParseStream(["$.foo[*]", "$.bar[*]"]))
 	.pipeTo(
 		new WritableStream({
 			write(x) {
