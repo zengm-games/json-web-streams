@@ -1,12 +1,12 @@
 import { assertType, test } from "vitest";
 import * as z from "zod";
-import { createJSONParseStream } from "./createJSONParseStream.ts";
+import { JSONParseStream } from "./JSONParseStream.ts";
 import { makeReadableStreamFromJson } from "./test/utils.ts";
 
 test("Object input with validator -> types of values are known", async () => {
 	const json = "[]";
 	const stream = makeReadableStreamFromJson(json).pipeThrough(
-		createJSONParseStream([
+		new JSONParseStream([
 			{ path: "$.foo", schema: z.string() },
 			{ path: "$.bar", schema: z.number() },
 		]),
@@ -37,7 +37,7 @@ test("Object input with validator -> types of values are known", async () => {
 test("Object input without validator -> types of values are unknown", async () => {
 	const json = "[]";
 	const stream = makeReadableStreamFromJson(json).pipeThrough(
-		createJSONParseStream([{ path: "$.foo", schema: z.string() }, "$.bar"]),
+		new JSONParseStream([{ path: "$.foo", schema: z.string() }, "$.bar"]),
 	);
 	const chunks = await Array.fromAsync(stream);
 	assertType<
@@ -65,7 +65,7 @@ test("Object input without validator -> types of values are unknown", async () =
 test("Array input -> types of values are unknown", async () => {
 	const json = "[]";
 	const stream = makeReadableStreamFromJson(json).pipeThrough(
-		createJSONParseStream(["$.foo", "$.bar"]),
+		new JSONParseStream(["$.foo", "$.bar"]),
 	);
 	const chunks = await Array.fromAsync(stream);
 	assertType<
@@ -85,9 +85,9 @@ test("Array input -> types of values are unknown", async () => {
 test("makeReadableStreamFromJson parameter is being checked as JSONPath", async () => {
 	try {
 		// @ts-expect-error
-		createJSONParseStream(["x"]);
+		new JSONParseStream(["x"]);
 
 		// @ts-expect-error
-		createJSONParseStream({ x: null });
+		new JSONParseStream({ x: null });
 	} catch {}
 });

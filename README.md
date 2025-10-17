@@ -21,12 +21,12 @@ You can just `JSON.parse` it and then do whatever you want. But what if it's so 
 By using json-web-streams, you can stream through the JSON object without having to read it all into memory. Here's an example that prints out each object as it is parsed:
 
 ```ts
-import { createJSONParseStream } from "json-web-streams";
+import { JSONParseStream } from "json-web-streams";
 
 const response = await fetch("https://example.com/data.json");
 await response.body
 	.pipeThrough(new TextDecoderStream())
-	.pipeThrough(createJSONParseStream(["$[*]"]))
+	.pipeThrough(new JSONParseStream(["$[*]"]))
 	.pipeTo(
 		new WritableStream({
 			write({ value }) {
@@ -47,7 +47,7 @@ await response.body
 > ```ts
 > const stream = response.body
 > 	.pipeThrough(new TextDecoderStream())
-> 	.pipeThrough(createJSONParseStream(["$[*]"]));
+> 	.pipeThrough(new JSONParseStream(["$[*]"]));
 > for await (const { value } of stream) {
 > 	console.log(value);
 > }
@@ -56,7 +56,7 @@ await response.body
 ## API
 
 ```ts
-const jsonParseStream = createJSONParseStream(
+const jsonParseStream = new JSONParseStream(
     jsonPaths: JSONPath[],
     options?: { multi?: boolean },
 );
@@ -106,7 +106,7 @@ Setting `multi` to `true` enables support for all of those streaming JSON format
 
 ### `JSONParseStream` input
 
-`createJSONParseStream(jsonPaths)` returns a [TransformStream](https://developer.mozilla.org/en-US/docs/Web/API/TransformStream), meaning that it receives some input (e.g. from a ReadableStream) and emits some output (e.g. to a WritableStream).
+`new JSONParseStream(jsonPaths)` returns a [TransformStream](https://developer.mozilla.org/en-US/docs/Web/API/TransformStream), meaning that it receives some input (e.g. from a ReadableStream) and emits some output (e.g. to a WritableStream).
 
 Input to `JSONParseStream` must be strings. If you have a stream emitting some binary encoded text (such as from `fetch`), pipe it through `TextDecoderStream` first:
 
@@ -114,7 +114,7 @@ Input to `JSONParseStream` must be strings. If you have a stream emitting some b
 const response = await fetch("https://example.com/data.json");
 const stream = response.body
 	.pipeThrough(new TextDecoderStream())
-	.pipeThrough(createJSONParseStream(["$.foo[*]"]));
+	.pipeThrough(new JSONParseStream(["$.foo[*]"]));
 ```
 
 ### `JSONParseStream` output
@@ -131,14 +131,14 @@ Output from `JSONParseStream` has this format:
 
 `value` is the value selected from one of your JSONPath queries.
 
-`jsonPath` is the JSONPath query (from the `jsonPaths` parameter of `createJSONParseStream`) that matched `value`.
+`jsonPath` is the JSONPath query (from the `jsonPaths` parameter of `JSONParseStream`) that matched `value`.
 
 If you only have one JSONPath query, you can ignore `jsonPath`. But if you have more than one, `jsonPath` may be helpful when processing stream output to distinguish between object types. For example:
 
 ```ts
 // readableStream emits { "foo": [1, 2], "bar": ["a", "b", "c"] }
 await readableStream
-	.pipeThrough(createJSONParseStream(["$.bar[*]", "$.foo[*]"]))
+	.pipeThrough(new JSONParseStream(["$.bar[*]", "$.foo[*]"]))
 	.pipeTo(
 		new WritableStream({
 			write(record) {
@@ -156,7 +156,7 @@ await readableStream
 
 ```ts
 // readableStream emits { "foo": [1, 2], "bar": ["a", "b", "c"] }
-await readableStream.pipeThrough(createJSONParseStream(["$[*]"])).pipeTo(
+await readableStream.pipeThrough(new JSONParseStream(["$[*]"])).pipeTo(
 	new WritableStream({
 		write(record) {
 			console.log(record);
@@ -185,7 +185,7 @@ import * as z from "zod";
 // readableStream emits { "foo": [1, 2], "bar": ["a", "b", "c"] }
 await readableStream
 	.pipeThrough(
-		createJSONParseStream({
+		new JSONParseStream({
 			"$.foo[*]": z.string(),
 			"$.bar[*]": z.number(),
 		}),
@@ -241,8 +241,8 @@ something about why to use this library (web streams, well tested, JSONPath, int
 maybe instead of object input, do (JSONPath | { jsonPath: JSONPath, schema: Schema })[]
 
 - could add back index?
-- could switch black to class?
 - if we keep "path" for input, should use it for output too
+- index.ts exports?
 
 ## Future
 

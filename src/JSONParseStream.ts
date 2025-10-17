@@ -46,20 +46,6 @@ const isEqual = (x: QueryPath[number], y: QueryPath[number] | undefined) => {
 	return x.type === "wildcard";
 };
 
-export function createJSONParseStream<
-	T extends readonly (
-		| JSONPath
-		| { path: JSONPath; schema: StandardSchemaV1 }
-	)[],
->(
-	jsonPaths: T,
-	options?: {
-		multi?: boolean;
-	},
-): JSONParseStream<T> {
-	return new JSONParseStream(jsonPaths, options);
-}
-
 // Extract jsonPath and value type from each tuple element
 type JSONParseStreamOutputItem<T> = T extends {
 	path: infer P extends JSONPath;
@@ -74,7 +60,7 @@ type JSONParseStreamOutputItem<T> = T extends {
 		? { jsonPath: T; value: unknown; wildcardKeys?: string[] }
 		: never;
 
-class JSONParseStream<
+export class JSONParseStream<
 	T extends readonly (
 		| JSONPath
 		| { path: JSONPath; schema: StandardSchemaV1 }
@@ -245,5 +231,3 @@ class JSONParseStream<
 		this._parser = parser!;
 	}
 }
-
-export type { JSONParseStream };
