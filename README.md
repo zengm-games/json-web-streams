@@ -137,9 +137,14 @@ Output from `JSONParseStream` has this format:
 
 If you only have one JSONPath query, you can ignore `path`. But if you have more than one, `path` may be helpful when processing stream output to distinguish between different types of values. For example:
 
+<!-- prettier-ignore -->
 ```ts
-// readableStream emits { "foo": [1, 2], "bar": ["a", "b", "c"] }
-await readableStream
+await new ReadableStream({
+		start(controller) {
+			controller.enqueue('{ "foo": [1, 2], "bar": ["a", "b", "c"] }');
+			controller.close();
+		},
+	})
 	.pipeThrough(new JSONParseStream(["$.bar[*]", "$.foo[*]"]))
 	.pipeTo(
 		new WritableStream({
@@ -156,18 +161,25 @@ await readableStream
 
 `wildcardKeys` is defined when you have a wildcard in an object (not an array) somewhere in your JSONPath. For example:
 
+<!-- prettier-ignore -->
 ```ts
-// readableStream emits { "foo": [1, 2], "bar": ["a", "b", "c"] }
-await readableStream.pipeThrough(new JSONParseStream(["$[*]"])).pipeTo(
-	new WritableStream({
-		write(record) {
-			console.log(record);
+await new ReadableStream({
+		start(controller) {
+			controller.enqueue('{ "foo": [1, 2], "bar": ["a", "b", "c"] }');
+			controller.close();
 		},
-	}),
-);
+	})
+	.pipeThrough(new JSONParseStream(["$[*]"]))
+	.pipeTo(
+		new WritableStream({
+			write(record) {
+				console.log(record);
+			},
+		}),
+	);
 // Output:
-// { value: [1, 2], path: "$[*]", wildcardKeys: ["foo"] },
-// { value: ["a", "b", "c"], path: "$[*]", wildcardKeys: ["bar"] },
+// { path: "$[*]", value: [1, 2], wildcardKeys: ["foo"] },
+// { path: "$[*]", value: ["a", "b", "c"], wildcardKeys: ["bar"] },
 ```
 
 The purpose of `wildcardKeys` is to allow you to easily distinguish different types of objects. `wildcardKeys` has one entry for each wildcard object in your JSONPath query.
@@ -183,24 +195,29 @@ If you want to validate the objects as they stream in, json-web-streams integrat
 
 To use schema validation for a JSONPath query, then pass an object `{ path: JSONPath; schema: StandardSchemaV1 }` rather just a string `JSONPath`. Then each value will be validated before being output by the stream, and the correct TypeScript types will be propagated through the stream as well.
 
+<!-- prettier-ignore -->
 ```ts
 import * as z from "zod";
 
-// readableStream emits { "foo": [1, 2], "bar": ["a", "b", "c"] }
-await readableStream
+await new ReadableStream({
+		start(controller) {
+			controller.enqueue('{ "foo": [1, 2], "bar": ["a", "b", "c"] }');
+			controller.close();
+		},
+	})
 	.pipeThrough(
 		new JSONParseStream([
-			{ path: "$.foo[*]", schema: z.string() },
-			{ path: "$.bar[*]", schema: z.number() },
+			{ path: "$.foo[*]", schema: z.number() },
+			{ path: "$.bar[*]", schema: z.string() },
 		]),
 	)
 	.pipeTo(
 		new WritableStream({
 			write(record) {
 				if (record.path === "$.foo[*]") {
-					// Type of record.value is string
-				} else {
 					// Type of record.value is number
+				} else {
+					// Type of record.value is string
 				}
 			},
 		}),
@@ -248,9 +265,7 @@ maybe instead of object input, do (JSONPath | { path: JSONPath, schema: Schema }
 - could add back index?
 - index.ts exports?
 
-make "readableStream emits" examples actually include the readable stream code. it's not much right?
-
-- some way to validate and run this code?
+some way to validate and run code in the readme?
 
 ## Future
 
