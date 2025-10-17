@@ -1,10 +1,10 @@
 # json-web-streams
 
 - **Stream large JSON files** without loading everything into memory
-- Built on the **Web Streams API** so it runs in web browsers, Node.js and more
+- Built on the **Web Streams API** so it runs in web browsers, Node.js, and more
 - Query with **JSONPath** to extract only the data you need
 - Integrated **schema validation** with full **TypeScript** support
-- Parser correctly handles the [JSON Test Suite](https://github.com/nst/JSONTestSuite) and other test cases
+- Tested on the [JSON Parsing Test Suite](https://github.com/nst/JSONTestSuite) and other edge cases
 
 ## Installation
 
@@ -93,9 +93,9 @@ json-web-streams only supports a subset of JSONPath. Currently the supported com
 > [!TIP]
 > You can combine these selectors as deep as you want. For instance, if instead you have an array of objects rather than numbers like in the previous example, you can select values inside those individual objects with a query like `$.foo[*].bar`.
 
-See the [JSONPath examples](#jsonpath-examples) section below for examples.
+See the [JSONPath examples](#jsonpath-examples) section below for more examples.
 
-The values ofo the `jsonPaths` array can either be `JSONPath` strings, or an object like `{ path: JSONPath; schema: StandardSchemaV1 }` where `schema` is a schema validator from any library supporting the [Standard Schema specification](https://github.com/standard-schema/standard-schema), such as Zod, Valibot, and ArkType. When you supply a schema like this, each object will be validated before it is emitted by the stream, and emitted objects will have correct TypeScript types rather than being `unknown`. More details and examples are in the [Schema validation and types for `JSONParseStream` output](#schema-validation-and-types-for-jsonparsestream-output) section below.
+The values of the `jsonPaths` array can either be `JSONPath` strings, or an object like `{ path: JSONPath; schema: StandardSchemaV1 }` where `schema` is a schema validator from any library supporting the [Standard Schema specification](https://github.com/standard-schema/standard-schema), such as Zod, Valibot, and ArkType. When you supply a schema like this, each object will be validated before it is emitted by the stream, and emitted objects will have correct TypeScript types rather than being `unknown`. More details and examples are in the [Schema validation and types for `JSONParseStream` output](#schema-validation-and-types-for-jsonparsestream-output) section below.
 
 ### `options?: { multi?: boolean }`
 
@@ -229,7 +229,7 @@ await new ReadableStream({
 ```
 
 > [!TIP]
-> If you only want to validate some values, you can mix `{ path: JSONPath; schema: StandardSchemaV1 }` and `JSONPath` in the `jsonPaths` array
+> If you only want to validate some values, you can mix `{ path: JSONPath; schema: StandardSchemaV1 }` and `JSONPath` in the `jsonPaths` array.
 
 For JSONPath queries with no schema, emitted values will have the `unknown` type.
 
@@ -249,18 +249,116 @@ Or if the array is at the root if the object like the initial example `[{ "x": 1
 
 And to collect the whole object (okay in that case you wouldn't use this library, but maybe just for testing, or for `multi` mode) you just use `$`.
 
+## JSONParseStream examples
+
+There are several examples above in code blocks throughout the README, and here are a few more!
+
+### `wildcardKeys` vs. multiple entries in `jsonPaths`
+
+Sometimes there are multiple ways to achieve your goal.
+
+Let's say you have this JSON:
+
+```json
+{ "foo": [1, 2], "bar": ["a", "b", "c"] }
+```
+
+You want to get all the values in `foo` and all the values in `bar`. You could define them as two separate JSONPaht queries and then distinguish the output with `.path`:
+
+<!-- prettier-ignore -->
+```ts
+await new ReadableStream({
+		start(controller) {
+			controller.enqueue('{ "foo": [1, 2], "bar": ["a", "b", "c"] }');
+			controller.close();
+		},
+	})
+	.pipeThrough(
+		new JSONParseStream(["$.foo[*]", "$.bar[*]"]),
+	)
+	.pipeTo(
+		new WritableStream({
+			write(record) {
+				if (record.path === "$.foo[*]") {
+					// 1, 2
+				} else {
+					// a, b, c
+				}
+			},
+		}),
+	);
+```
+
+Or you could use one JSONPath query with a wildcard, and then use `.wildcardKeys` to distinguish the objects:
+
+<!-- prettier-ignore -->
+```ts
+await new ReadableStream({
+		start(controller) {
+			controller.enqueue('{ "foo": [1, 2], "bar": ["a", "b", "c"] }');
+			controller.close();
+		},
+	})
+	.pipeThrough(
+		new JSONParseStream(["$[*][*]"]),
+	)
+	.pipeTo(
+		new WritableStream({
+			write(record) {
+				if (record.wildcardKeys[0] === "foo") {
+					// 1, 2
+				} else {
+					// a, b, c
+				}
+			},
+		}),
+	);
+```
+
+Using multiple JSONPath queries is a little more explicit, but using wildcad keys is more concise, especially if you had more than just two types of objects. And instead of known keys like `foo` and `bar` your JSON had some unknown keys, then using a wildcard would be your only option.
+
+But a nice thing about multiple JSONPath queries is that you can add schema validation to ensure your data is the correct format and give you nice TypeScript types. Whereas if you are using `wildcardKeys` to distinguish types, there is currently no way to use that information in schema validation.
+
+In this example, Zod schemas enforce that `record.value` is either a `string` or `number` as appropriate, rather than `unknown`:
+
+<!-- prettier-ignore -->
+```ts
+import * as z from "zod";
+
+await new ReadableStream({
+		start(controller) {
+			controller.enqueue('{ "foo": [1, 2], "bar": ["a", "b", "c"] }');
+			controller.close();
+		},
+	})
+	.pipeThrough(
+		new JSONParseStream([
+			{ path: "$.foo[*]", schema: z.number() },
+			{ path: "$.bar[*]", schema: z.string() },
+		]),
+	)
+	.pipeTo(
+		new WritableStream({
+			write(record) {
+				if (record.path === "$.foo[*]") {
+					// 1, 2
+				} else {
+					// a, b, c
+				}
+			},
+		}),
+	);
+```
+
 ## Plan
-
-Support validating schema of emitted objects
-
-- how does this work with wildcardKeys, might want to use that to apply different types
-  - https://zod.dev/api#custom or something, make an example/test
-- can this also support arbitray TypeScript type guards? or read the return type of a function or something?
-  - maybe https://zod.dev/api#custom is good to mention
 
 benchmark?
 
-More examples
+too much jsonpath docs at the front, should move to examples section?
+
+link to https://jsonpath.com/
+
+More examples?
 
 ## Future
 

@@ -39,3 +39,22 @@ await makeReadableStreamFromJson(json)
 		}),
 	);
 //const jsonPaths = ["$.foo[*]", "$.bar[*]"] as const;
+await new ReadableStream({
+	start(controller) {
+		controller.enqueue('{ "foo": [1, 2], "bar": ["a", "b", "c"] }');
+		controller.close();
+	},
+})
+	.pipeThrough(new JSONParseStream(["$[*][*]"]))
+	.pipeTo(
+		new WritableStream({
+			write(record) {
+				console.log(record);
+				if (record.wildcardKeys[0] === "foo") {
+					// 1, 2
+				} else {
+					// a, b, c
+				}
+			},
+		}),
+	);
