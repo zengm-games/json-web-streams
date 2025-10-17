@@ -57,14 +57,14 @@ await response.body
 
 ```ts
 const jsonParseStream = new JSONParseStream(
-    jsonPaths: JSONPath[],
+    jsonPaths: (JSONPath | { path: JSONPath; schema: StandardSchemaV1 })[],
     options?: { multi?: boolean },
 );
 ```
 
-### `jsonpaths: JSONPath[]`
+### `jsonpaths: (JSONPath | { path: JSONPath; schema: StandardSchemaV1 })[]`
 
-The first argument to `JSONParseStream` is an array of strings specifying what objects to emit from the stream. The syntax for these strings is a subset of [JSONPath](https://en.wikipedia.org/wiki/JSONPath), which is a query language for JSON.
+The first argument to `JSONParseStream` is an array specifying what objects to emit from the stream. Here the `JSONPath` type is a string containing a [JSONPath](https://en.wikipedia.org/wiki/JSONPath) query. JSONPath is a query language for JSON to let you pick out specific items from your whole JSON object.
 
 (The `JSONPath` type here is just a slightly more restrictive version of a string. I wish it could completely parse and validate the JSONPath syntax, but currently it just enforces some little things like that it must start with a `$`.)
 
@@ -80,7 +80,7 @@ but you can have as many as you want:
 ["$.foo[*]", "$.bar", "$.bar.baz"]
 ```
 
-As mentioned above, json-web-streams only supports a subset of JSONPath. Currently the only supported components are:
+json-web-streams only supports a subset of JSONPath. Currently the supported components are:
 
 - **Name selectors** which are like accessing a property in a JS object. For instance if you have an object like `{ "foo": { bar: 5 } }`, then `$.foo.bar` refers to the value `5`. You can also write this in the more verbose bracket notation like `$["foo"]["bar"]` or `$["foo", "bar"]`, which is useful if your key names include characters that need escaping. You can also mix them like `$.foo["bar"]` or use single quotes like `$['foo']['bar']` - all of these JSONPath queries have the same meaning.
 
@@ -89,7 +89,9 @@ As mentioned above, json-web-streams only supports a subset of JSONPath. Current
 > [!TIP]
 > You can combine these selectors as deep as you want. For instance, if instead you have an array of objects rather than numbers like in the previous example, you can select values inside those individual objects with a query like `$.foo[*].bar`.
 
-See the [JSONPath examples](#jsonpath-examples) section below for more examples.
+See the [JSONPath examples](#jsonpath-examples) section below for examples.
+
+The values ofo the `jsonPaths` array can either be `JSONPath` strings, or an object like `{ path: JSONPath; schema: StandardSchemaV1 }` where `schema` is a schema validator from any library supporting the [Standard Schema specification](https://github.com/standard-schema/standard-schema), such as Zod, Valibot, and ArkType. When you supply a schema like this, each object will be validated before it is emitted by the stream, and emitted objects will have correct TypeScript types rather than being `unknown`. More details and examples are in the [Schema validation and types for `JSONParseStream` output](#schema-validation-and-types-for-jsonparsestream-output) section below.
 
 ### `options?: { multi?: boolean }`
 
@@ -108,7 +110,7 @@ Setting `multi` to `true` enables support for all of those streaming JSON format
 
 `new JSONParseStream(jsonPaths)` returns a [TransformStream](https://developer.mozilla.org/en-US/docs/Web/API/TransformStream), meaning that it receives some input (e.g. from a ReadableStream) and emits some output (e.g. to a WritableStream).
 
-Input to `JSONParseStream` must be strings. If you have a stream emitting some binary encoded text (such as from `fetch`), pipe it through `TextDecoderStream` first:
+Inputs to the `JSONParseStream` stream must be strings. If you have a stream emitting some binary encoded text (such as from `fetch`), pipe it through `TextDecoderStream` first:
 
 ```ts
 const response = await fetch("https://example.com/data.json");
@@ -133,7 +135,7 @@ Output from `JSONParseStream` has this format:
 
 `path` is the JSONPath query (from the `jsonPaths` parameter of `JSONParseStream`) that matched `value`.
 
-If you only have one JSONPath query, you can ignore `path`. But if you have more than one, `path` may be helpful when processing stream output to distinguish between object types. For example:
+If you only have one JSONPath query, you can ignore `path`. But if you have more than one, `path` may be helpful when processing stream output to distinguish between different types of values. For example:
 
 ```ts
 // readableStream emits { "foo": [1, 2], "bar": ["a", "b", "c"] }
@@ -177,7 +179,9 @@ The purpose of `wildcardKeys` is to allow you to easily distinguish different ty
 
 #### Schema validation and types for `JSONParseStream` output
 
-If you want to validate the objects as they stream in, json-web-streams integrates with any schema validation library that supports the [Standard Schema specification](https://github.com/standard-schema/standard-schema), such as Zod, Valibot, and ArkType. To use schema validation, then pass an object of `<JSONPath, StandardSchemaV1 | null>` rather than a `JSONPath[]` array.
+If you want to validate the objects as they stream in, json-web-streams integrates with any schema validation library that supports the [Standard Schema specification](https://github.com/standard-schema/standard-schema), such as Zod, Valibot, and ArkType.
+
+To use schema validation for a JSONPath query, then pass an object `{ path: JSONPath; schema: StandardSchemaV1 }` rather just a string `JSONPath`. Then each value will be validated before being output by the stream, and the correct TypeScript types will be propagated through the stream as well.
 
 ```ts
 import * as z from "zod";
@@ -185,10 +189,10 @@ import * as z from "zod";
 // readableStream emits { "foo": [1, 2], "bar": ["a", "b", "c"] }
 await readableStream
 	.pipeThrough(
-		new JSONParseStream({
-			"$.foo[*]": z.string(),
-			"$.bar[*]": z.number(),
-		}),
+		new JSONParseStream([
+			{ path: "$.foo[*]", schema: z.string() },
+			{ path: "$.bar[*]", schema: z.number() },
+		]),
 	)
 	.pipeTo(
 		new WritableStream({
@@ -203,9 +207,10 @@ await readableStream
 	);
 ```
 
-If you only want to validate some values, use `null` rather than a schema and those values will come through as `unknown`.
+> [!TIP]
+> If you only want to validate some values, you can mix `{ path: JSONPath; schema: StandardSchemaV1 }` and `JSONPath` in the `jsonPaths` array
 
-If you don't want to validate any values, then you can just use the simpler `JSONPath[]` syntax, which is the same as specifying a `null` validator for each JSONPath. Then all the values will have the type `unknown`.
+For JSONPath queries with no schema, emitted values will have the `unknown` type.
 
 ## JSONPath examples
 
@@ -243,6 +248,10 @@ maybe instead of object input, do (JSONPath | { path: JSONPath, schema: Schema }
 - could add back index?
 - index.ts exports?
 
+make "readableStream emits" examples actually include the readable stream code. it's not much right?
+
+- some way to validate and run this code?
+
 ## Future
 
 JSONStringifyStream - Whenever I've had to do this in the past, it winds up being some messy ad hoc thing, but also it's a lot easier to write than messy ad hoc parsing code. So this is less valuable than JSONParseStream, and I'm less sure what the API should be.
@@ -264,3 +273,5 @@ More JSONPath stuff https://www.rfc-editor.org/rfc/rfc9535.html
   - @ referencing this object
   - $ referencing root object
 - .. deep scan
+
+better JSONPath type
