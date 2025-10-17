@@ -68,16 +68,16 @@ The first argument to `JSONParserStream` is an array of strings specifying what 
 
 (The `JSONPath` type here is just a slightly more restrictive version of a string. I wish it could completely parse and validate the JSONPath syntax, but currently it just enforces some little things like that it must start with a `$`.)
 
-In many cases, you'll just have one JSONPath query in this array, like:
+In many cases, you'll just have one JSONPath query, like:
 
-```ts
-["$.foo[*]"];
+```json
+["$.foo[*]"]
 ```
 
 but you can have as many as you want:
 
-```ts
-["$.foo[*]", "$.bar", "$.bar.baz"];
+```json
+["$.foo[*]", "$.bar", "$.bar.baz"]
 ```
 
 As mentioned above, json-web-streams only supports a subset of JSONPath. Currently the only supported components are:
