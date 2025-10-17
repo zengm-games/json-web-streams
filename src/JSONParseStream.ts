@@ -46,18 +46,17 @@ const isEqual = (x: PathArray[number], y: PathArray[number] | undefined) => {
 	return x.type === "wildcard";
 };
 
-// Extract jsonPath and value type from each tuple element
-type JSONParseStreamOutputItem<T> = T extends {
+type JSONParseStreamOutput<T> = T extends {
 	path: infer P extends JSONPath;
 	schema: infer S extends StandardSchemaV1;
 }
 	? {
-			jsonPath: P;
+			path: P;
 			value: StandardSchemaV1.InferOutput<S>;
 			wildcardKeys?: string[];
 		}
 	: T extends JSONPath
-		? { jsonPath: T; value: unknown; wildcardKeys?: string[] }
+		? { path: T; value: unknown; wildcardKeys?: string[] }
 		: never;
 
 export class JSONParseStream<
@@ -65,7 +64,7 @@ export class JSONParseStream<
 		| JSONPath
 		| { path: JSONPath; schema: StandardSchemaV1 }
 	)[],
-> extends TransformStream<string, JSONParseStreamOutputItem<T[number]>> {
+> extends TransformStream<string, JSONParseStreamOutput<T[number]>> {
 	_parser: JSONParserText;
 
 	constructor(
@@ -91,6 +90,7 @@ export class JSONParseStream<
 				path = row.path;
 				schema = row.schema;
 			}
+
 			const pathArray = jsonPathToPathArray(path);
 
 			let wildcardIndexes: number[] | undefined;
@@ -166,16 +166,16 @@ export class JSONParseStream<
 										}
 									}
 
-									// Casting to any is needed because jsonPathInfos is broader than it should be - it should be constrained so jsonPath is one of the input paths, and valueToEmit is the correct type if a schema is present
+									// Casting to any is needed because jsonPathInfos is broader than it should be - it should be constrained so path is one of the input paths, and valueToEmit is the correct type if a schema is present
 									if (wildcardKeys) {
 										controller.enqueue({
-											jsonPath: path,
+											path: path,
 											value: valueToEmit,
 											wildcardKeys,
 										} as any);
 									} else {
 										controller.enqueue({
-											jsonPath: path,
+											path: path,
 											value: valueToEmit,
 										} as any);
 									}

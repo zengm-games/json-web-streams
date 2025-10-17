@@ -124,16 +124,16 @@ Output from `JSONParseStream` has this format:
 ```ts
 {
     value: unknown,
-    jsonPath: JSONPath,
+    path: JSONPath,
     wildcardKeys?: string[],
 }
 ```
 
 `value` is the value selected from one of your JSONPath queries.
 
-`jsonPath` is the JSONPath query (from the `jsonPaths` parameter of `JSONParseStream`) that matched `value`.
+`path` is the JSONPath query (from the `jsonPaths` parameter of `JSONParseStream`) that matched `value`.
 
-If you only have one JSONPath query, you can ignore `jsonPath`. But if you have more than one, `jsonPath` may be helpful when processing stream output to distinguish between object types. For example:
+If you only have one JSONPath query, you can ignore `path`. But if you have more than one, `path` may be helpful when processing stream output to distinguish between object types. For example:
 
 ```ts
 // readableStream emits { "foo": [1, 2], "bar": ["a", "b", "c"] }
@@ -142,7 +142,7 @@ await readableStream
 	.pipeTo(
 		new WritableStream({
 			write(record) {
-				if (record.jsonPath === "$.bar[*]") {
+				if (record.path === "$.bar[*]") {
 					// Do something with the values from bar
 				} else {
 					// Do something with the values from foo
@@ -164,8 +164,8 @@ await readableStream.pipeThrough(new JSONParseStream(["$[*]"])).pipeTo(
 	}),
 );
 // Output:
-// { value: [1, 2], jsonPath: "$[*]", wildcardKeys: ["foo"] },
-// { value: ["a", "b", "c"], jsonPath: "$[*]", wildcardKeys: ["bar"] },
+// { value: [1, 2], path: "$[*]", wildcardKeys: ["foo"] },
+// { value: ["a", "b", "c"], path: "$[*]", wildcardKeys: ["bar"] },
 ```
 
 The purpose of `wildcardKeys` is to allow you to easily distinguish different types of objects. `wildcardKeys` has one entry for each wildcard object in your JSONPath query.
@@ -193,7 +193,7 @@ await readableStream
 	.pipeTo(
 		new WritableStream({
 			write(record) {
-				if (record.jsonPath === "$.foo[*]") {
+				if (record.path === "$.foo[*]") {
 					// Type of record.value is string
 				} else {
 					// Type of record.value is number
@@ -238,10 +238,9 @@ More examples
 
 something about why to use this library (web streams, well tested, JSONPath, integrated schema validation / TypeScript)
 
-maybe instead of object input, do (JSONPath | { jsonPath: JSONPath, schema: Schema })[]
+maybe instead of object input, do (JSONPath | { path: JSONPath, schema: Schema })[]
 
 - could add back index?
-- if we keep "path" for input, should use it for output too
 - index.ts exports?
 
 ## Future

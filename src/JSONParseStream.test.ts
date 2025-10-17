@@ -7,7 +7,7 @@ import { makeReadableStreamFromJson } from "./test/utils.ts";
 
 describe("Parsing", async () => {
 	const parseWholeJson = async (json: string) => {
-		// With jsonPath $ (return root object) it should only emit one chunk, but with invalid JSON there could be more text, and we need to read through it all to make sure we see any errors that appear
+		// With JSONPath $ (return root object) it should only emit one chunk, but with invalid JSON there could be more text, and we need to read through it all to make sure we see any errors that appear
 		let firstValue: any;
 
 		await makeReadableStreamFromJson(json)
@@ -60,16 +60,16 @@ describe("Parsing", async () => {
 
 describe("Streaming", () => {
 	const json = JSON.stringify([{ foo: [1, 2] }, { bar: [{ x: 3 }, { x: 4 }] }]);
-	const jsonPath = "$[*].foo[*]";
+	const path = "$[*].foo[*]";
 
 	test("Streams values", async () => {
 		const stream = makeReadableStreamFromJson(json).pipeThrough(
-			new JSONParseStream([jsonPath]),
+			new JSONParseStream([path]),
 		);
 		const chunks = await Array.fromAsync(stream);
 		assert.deepStrictEqual(chunks, [
-			{ value: 1, jsonPath },
-			{ value: 2, jsonPath },
+			{ value: 1, path },
+			{ value: 2, path },
 		]);
 	});
 
@@ -81,10 +81,10 @@ describe("Streaming", () => {
 		);
 		const chunks = await Array.fromAsync(stream);
 		assert.deepStrictEqual(chunks, [
-			{ value: 1, jsonPath: jsonPaths[0] },
-			{ value: 2, jsonPath: jsonPaths[0] },
-			{ value: { x: 3 }, jsonPath: jsonPaths[1] },
-			{ value: { x: 4 }, jsonPath: jsonPaths[1] },
+			{ value: 1, path: jsonPaths[0] },
+			{ value: 2, path: jsonPaths[0] },
+			{ value: { x: 3 }, path: jsonPaths[1] },
+			{ value: { x: 4 }, path: jsonPaths[1] },
 		]);
 	});
 
@@ -96,10 +96,10 @@ describe("Streaming", () => {
 		);
 		const chunks = await Array.fromAsync(stream);
 		assert.deepStrictEqual(chunks, [
-			{ value: 3, jsonPath: jsonPaths[1] },
-			{ value: { x: 3 }, jsonPath: jsonPaths[0] },
-			{ value: 4, jsonPath: jsonPaths[1] },
-			{ value: { x: 4 }, jsonPath: jsonPaths[0] },
+			{ value: 3, path: jsonPaths[1] },
+			{ value: { x: 3 }, path: jsonPaths[0] },
+			{ value: 4, path: jsonPaths[1] },
+			{ value: { x: 4 }, path: jsonPaths[0] },
 		]);
 	});
 
@@ -122,7 +122,7 @@ describe("Streaming", () => {
 
 		const chunks = await Array.fromAsync(stream);
 		const foo = chunks
-			.filter((chunk) => chunk.jsonPath === jsonPaths[0])
+			.filter((chunk) => chunk.path === jsonPaths[0])
 			.map((chunk) => chunk.value);
 		assert.deepStrictEqual(foo, [[{ key: 1 }]]);
 	});
@@ -161,33 +161,33 @@ describe("Streaming", () => {
 
 	test("[*] works for objects too, not just arrays", async () => {
 		const cases: {
-			jsonPath: JSONPath;
+			path: JSONPath;
 			data: unknown;
 		}[] = [
 			{
-				jsonPath: "$[*]",
+				path: "$[*]",
 				data: { foo: "f", bar: "b" },
 			},
 			{
-				jsonPath: "$.x[*]",
+				path: "$.x[*]",
 				data: { x: { foo: "f", bar: "b" } },
 			},
 		];
 
-		for (const { jsonPath, data } of cases) {
+		for (const { path, data } of cases) {
 			const json = JSON.stringify(data);
 			const stream = makeReadableStreamFromJson(json).pipeThrough(
-				new JSONParseStream([jsonPath]),
+				new JSONParseStream([path]),
 			);
 			const values = await Array.fromAsync(stream);
 			assert.deepStrictEqual(values, [
 				{
-					jsonPath,
+					path,
 					value: "f",
 					wildcardKeys: ["foo"],
 				},
 				{
-					jsonPath,
+					path,
 					value: "b",
 					wildcardKeys: ["bar"],
 				},
@@ -211,36 +211,36 @@ describe("Streaming", () => {
 		};
 		const json = JSON.stringify(data);
 
-		for (const jsonPath of jsonPaths) {
+		for (const path of jsonPaths) {
 			const stream = makeReadableStreamFromJson(json).pipeThrough(
-				new JSONParseStream([jsonPath]),
+				new JSONParseStream([path]),
 			);
 			const values = await Array.fromAsync(stream);
 			assert.deepStrictEqual(
 				values,
 				[
 					{
-						jsonPath,
+						path,
 						value: 1,
 						wildcardKeys: ["foo"],
 					},
 					{
-						jsonPath,
+						path,
 						value: 2,
 						wildcardKeys: ["foo"],
 					},
 					{
-						jsonPath,
+						path,
 						value: 3,
 						wildcardKeys: ["bar"],
 					},
 					{
-						jsonPath,
+						path,
 						value: 4,
 						wildcardKeys: ["bar"],
 					},
 				],
-				jsonPath,
+				path,
 			);
 		}
 	});
@@ -254,17 +254,17 @@ describe("Multi option", () => {
 			const json = objects
 				.map((object) => JSON.stringify(object))
 				.join(separator);
-			const jsonPath = "$.a";
+			const path = "$.a";
 			const stream = makeReadableStreamFromJson(json).pipeThrough(
-				new JSONParseStream([jsonPath], {
+				new JSONParseStream([path], {
 					multi: true,
 				}),
 			);
 			const chunks = await Array.fromAsync(stream);
 			assert.deepStrictEqual(chunks, [
-				{ value: 1, jsonPath },
-				{ value: 2, jsonPath },
-				{ value: 3, jsonPath },
+				{ value: 1, path },
+				{ value: 2, path },
+				{ value: 3, path },
 			]);
 		});
 
@@ -274,34 +274,34 @@ describe("Multi option", () => {
 				separator +
 				objects.map((object) => JSON.stringify(object)).join(separator) +
 				separator;
-			const jsonPath = "$.a";
+			const path = "$.a";
 			const stream = makeReadableStreamFromJson(json).pipeThrough(
-				new JSONParseStream([jsonPath], {
+				new JSONParseStream([path], {
 					multi: true,
 				}),
 			);
 			const chunks = await Array.fromAsync(stream);
 			assert.deepStrictEqual(chunks, [
-				{ value: 1, jsonPath },
-				{ value: 2, jsonPath },
-				{ value: 3, jsonPath },
+				{ value: 1, path },
+				{ value: 2, path },
+				{ value: 3, path },
 			]);
 		});
 	}
 
 	test("Multiple objects emitted for $", async () => {
 		const json = "[1][2][3]";
-		const jsonPath = "$";
+		const path = "$";
 		const stream = makeReadableStreamFromJson(json).pipeThrough(
-			new JSONParseStream([jsonPath], {
+			new JSONParseStream([path], {
 				multi: true,
 			}),
 		);
 		const chunks = await Array.fromAsync(stream);
 		assert.deepStrictEqual(chunks, [
-			{ value: [1], jsonPath },
-			{ value: [2], jsonPath },
-			{ value: [3], jsonPath },
+			{ value: [1], path },
+			{ value: [2], path },
+			{ value: [3], path },
 		]);
 	});
 });

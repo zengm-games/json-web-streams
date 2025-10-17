@@ -15,18 +15,18 @@ test("Object input with validator -> types of values are known", async () => {
 	assertType<
 		(
 			| {
-					jsonPath: "$.foo";
+					path: "$.foo";
 					value: string;
 			  }
 			| {
-					jsonPath: "$.bar";
+					path: "$.bar";
 					value: number;
 			  }
 		)[]
 	>(chunks);
 
 	for (const chunk of chunks) {
-		if (chunk.jsonPath === "$.foo") {
+		if (chunk.path === "$.foo") {
 			assertType<string>(chunk.value);
 		} else {
 			assertType<number>(chunk.value);
@@ -43,18 +43,18 @@ test("Object input without validator -> types of values are unknown", async () =
 	assertType<
 		(
 			| {
-					jsonPath: "$.foo";
+					path: "$.foo";
 					value: string;
 			  }
 			| {
-					jsonPath: "$.bar";
+					path: "$.bar";
 					value: unknown;
 			  }
 		)[]
 	>(chunks);
 
 	for (const chunk of chunks) {
-		if (chunk.jsonPath === "$.foo") {
+		if (chunk.path === "$.foo") {
 			assertType<string>(chunk.value);
 		} else {
 			assertType<unknown>(chunk.value);
@@ -71,11 +71,11 @@ test("Array input -> types of values are unknown", async () => {
 	assertType<
 		(
 			| {
-					jsonPath: "$.foo";
+					path: "$.foo";
 					value: unknown;
 			  }
 			| {
-					jsonPath: "$.bar";
+					path: "$.bar";
 					value: unknown;
 			  }
 		)[]

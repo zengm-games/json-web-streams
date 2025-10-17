@@ -13,12 +13,12 @@ export type PathArray = (
 // Would be nice to be more strict than this, but I think it's not possible
 export type JSONPath = "$" | `$${"." | "["}${string}`;
 
-export const jsonPathToPathArray = (jsonPath: JSONPath): PathArray => {
+export const jsonPathToPathArray = (path: JSONPath): PathArray => {
 	let parsed;
 	try {
-		parsed = parser(jsonPath);
+		parsed = parser(path);
 	} catch (error) {
-		throw new Error(`Error parsing JSONPath "${jsonPath}"`, { cause: error });
+		throw new Error(`Error parsing JSONPath "${path}"`, { cause: error });
 	}
 	return parsed.segments.flatMap((segment) => {
 		if (segment.type === "ChildSegment") {
