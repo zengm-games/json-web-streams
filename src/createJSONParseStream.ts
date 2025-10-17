@@ -46,63 +46,40 @@ const isEqual = (x: QueryPath[number], y: QueryPath[number] | undefined) => {
 	return x.type === "wildcard";
 };
 
-export type JSONPathsWithSchemas = Partial<
-	Record<JSONPath, StandardSchemaV1 | null>
->;
-
-// Without this, `createJSONParseStream({x: null})` is not a type error because TypeScript doesn't have exact object types
-type NoExtras<T, U> = T & {
-	[K in keyof T as K extends keyof U ? K : never]: T[K];
-} & { [K in keyof T as K extends keyof U ? never : K]: never };
-
-export function createJSONParseStream<T extends JSONPathsWithSchemas>(
-	jsonPaths: NoExtras<T, JSONPathsWithSchemas>,
-	options?: {
-		multi?: boolean;
-	},
-): JSONParseStream<T>;
-export function createJSONParseStream<T extends readonly JSONPath[]>(
-	jsonPaths: T,
-	options?: {
-		multi?: boolean;
-	},
-): JSONParseStream<{ [K in T[number]]: undefined }>;
 export function createJSONParseStream<
-	T extends JSONPathsWithSchemas | readonly JSONPath[],
-	// Not really sure why I need this so many places, but seems I do
-	ArrayInput extends Extract<T, readonly JSONPath[]>,
-	ArrayOutput extends Record<ArrayInput[number], undefined>,
+	T extends readonly (
+		| JSONPath
+		| { path: JSONPath; schema: StandardSchemaV1 }
+	)[],
 >(
 	jsonPaths: T,
 	options?: {
 		multi?: boolean;
 	},
-): JSONParseStream<T extends JSONPathsWithSchemas ? T : ArrayOutput> {
-	if (Array.isArray(jsonPaths)) {
-		// Type casting in this branch is mostly because https://github.com/microsoft/TypeScript/issues/33700
-		const obj = {} as ArrayOutput;
-		for (const jsonPath of jsonPaths) {
-			(obj as any)[jsonPath] = undefined;
-		}
-		return new JSONParseStream(obj, options) as any;
-	}
-
-	// Type casting is needed because of https://github.com/microsoft/TypeScript/issues/17002
-	return new JSONParseStream(jsonPaths as JSONPathsWithSchemas, options);
+): JSONParseStream<T> {
+	return new JSONParseStream(jsonPaths, options);
 }
 
-class JSONParseStream<T extends JSONPathsWithSchemas> extends TransformStream<
-	string,
-	{
-		[K in keyof T]: {
-			jsonPath: K;
-			value: T[K] extends StandardSchemaV1
-				? StandardSchemaV1.InferOutput<T[K]>
-				: unknown;
+// Extract jsonPath and value type from each tuple element
+type JSONParseStreamOutputItem<T> = T extends {
+	path: infer P extends JSONPath;
+	schema: infer S extends StandardSchemaV1;
+}
+	? {
+			jsonPath: P;
+			value: StandardSchemaV1.InferOutput<S>;
 			wildcardKeys?: string[];
-		};
-	}[keyof T]
-> {
+		}
+	: T extends JSONPath
+		? { jsonPath: T; value: unknown; wildcardKeys?: string[] }
+		: never;
+
+class JSONParseStream<
+	T extends readonly (
+		| JSONPath
+		| { path: JSONPath; schema: StandardSchemaV1 }
+	)[],
+> extends TransformStream<string, JSONParseStreamOutputItem<T[number]>> {
 	_parser: JSONParserText;
 
 	constructor(
@@ -119,12 +96,19 @@ class JSONParseStream<T extends JSONPathsWithSchemas> extends TransformStream<
 			{
 				jsonPath: JSONPath;
 				queryPath: QueryPath;
-				schema: StandardSchemaV1 | null;
+				schema: StandardSchemaV1 | undefined;
 				wildcardIndexes: number[] | undefined;
 			}
 		>();
-		for (const [key, schema] of Object.entries(jsonPaths)) {
-			const jsonPath = key as JSONPath;
+		for (const row of jsonPaths) {
+			let jsonPath;
+			let schema;
+			if (typeof row === "string") {
+				jsonPath = row;
+			} else {
+				jsonPath = row.path;
+				schema = row.schema;
+			}
 			const queryPath = jsonPathToQueryPath(jsonPath);
 
 			let wildcardIndexes: number[] | undefined;
@@ -140,7 +124,7 @@ class JSONParseStream<T extends JSONPathsWithSchemas> extends TransformStream<
 			queryInfos.set(jsonPath, {
 				jsonPath,
 				queryPath,
-				schema: schema as any,
+				schema,
 				wildcardIndexes,
 			});
 		}

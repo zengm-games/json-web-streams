@@ -238,6 +238,11 @@ More examples
 
 something about why to use this library (web streams, well tested, JSONPath, integrated schema validation / TypeScript)
 
+maybe instead of object input, do (JSONPath | { jsonPath: JSONPath, schema: Schema })[]
+
+- could add back index?
+- could switch black to class?
+
 ## Future
 
 JSONStringifyStream - Whenever I've had to do this in the past, it winds up being some messy ad hoc thing, but also it's a lot easier to write than messy ad hoc parsing code. So this is less valuable than JSONParseStream, and I'm less sure what the API should be.

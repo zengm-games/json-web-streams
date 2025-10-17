@@ -6,7 +6,10 @@ import { makeReadableStreamFromJson } from "./test/utils.ts";
 test("Object input with validator -> types of values are known", async () => {
 	const json = "[]";
 	const stream = makeReadableStreamFromJson(json).pipeThrough(
-		createJSONParseStream({ "$.foo": z.string(), "$.bar": z.number() }),
+		createJSONParseStream([
+			{ path: "$.foo", schema: z.string() },
+			{ path: "$.bar", schema: z.number() },
+		]),
 	);
 	const chunks = await Array.fromAsync(stream);
 	assertType<
@@ -34,7 +37,7 @@ test("Object input with validator -> types of values are known", async () => {
 test("Object input without validator -> types of values are unknown", async () => {
 	const json = "[]";
 	const stream = makeReadableStreamFromJson(json).pipeThrough(
-		createJSONParseStream({ "$.foo": z.string(), "$.bar": null }),
+		createJSONParseStream([{ path: "$.foo", schema: z.string() }, "$.bar"]),
 	);
 	const chunks = await Array.fromAsync(stream);
 	assertType<
