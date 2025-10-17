@@ -57,14 +57,18 @@ await response.body
 
 ```ts
 const jsonParserStream = createJSONParserStream(
-    jsonPaths: string[],
+    jsonPaths: JSONPath[],
     options?: { multi?: boolean },
 );
 ```
 
-### `jsonpaths: string[]`
+### `jsonpaths: JSONPath[]`
 
-The first argument to `JSONParserStream` is an array of strings specifying what objects to emit from the stream. In many cases, you'll just have one value in this array, like:
+The first argument to `JSONParserStream` is an array of strings specifying what objects to emit from the stream. The syntax for these strings is a subset of [JSONPath](https://en.wikipedia.org/wiki/JSONPath), which is a query language for JSON.
+
+(The `JSONPath` type here is just a slightly more restrictive version of a string. I wish it could completely parse and validate the JSONPath syntax, but currently it just enforces some little things like that it must start with a `$`.)
+
+In many cases, you'll just have one JSONPath query in this array, like:
 
 ```ts
 ["$.foo[*]"];
@@ -76,7 +80,7 @@ but you can have as many as you want:
 ["$.foo[*]", "$.bar", "$.bar.baz"];
 ```
 
-The syntax for these strings is a subset of [JSONPath](https://en.wikipedia.org/wiki/JSONPath). Currently the only supported components are:
+As mentioned above, json-web-streams only supports a subset of JSONPath. Currently the only supported components are:
 
 - **Name selectors** which are like accessing a property in a JS object. For instance if you have an object like `{ "foo": { bar: 5 } }`, then `$.foo.bar` refers to the value `5`. You can also write this in the more verbose bracket notation like `$["foo"]["bar"]` or `$["foo", "bar"]`, which is useful if your key names include characters that need escaping. You can also mix them like `$.foo["bar"]` or use single quotes like `$['foo']['bar']` - all of these JSONPath queries have the same meaning.
 
@@ -84,6 +88,8 @@ The syntax for these strings is a subset of [JSONPath](https://en.wikipedia.org/
 
 > [!TIP]
 > You can combine these selectors as deep as you want. For instance, if instead you have an array of objects rather than numbers like in the previous example, you can select values inside those individual objects with a query like `$.foo[*].bar`.
+
+See the [JSONPath examples](#jsonpath-examples) section below for more examples.
 
 ### `options?: { multi?: boolean }`
 
@@ -204,28 +210,28 @@ And to collect the whole object (okay in that case you wouldn't use this library
 
 ## Plan
 
-output jsonPath or index? or both?
-
-- consider what the API would be with validator functions, might be an object with jsonPath keys and function values
-
 Support validating schema of emitted objects
 
-- https://github.com/standard-schema/standard-schema
-- use this to determine the type of emitted objects too, rather than generic
 - how does this work with wildcardKeys, might want to use that to apply different types
-- could this replace the generic class parameter? if so, maybe add back multiIndex
 - can this also support arbitray TypeScript type guards? or read the return type of a function or something?
-- https://github.com/standard-schema/standard-schema?tab=readme-ov-file#how-do-i-accept-standard-schemas-in-my-library
-- do i need to support async? https://github.com/standard-schema/standard-schema?tab=readme-ov-file#how-to-only-allow-synchronous-validation
+  - maybe https://zod.dev/api#custom is good to mention
 - clone still needed?
   - included in zod parse https://zod.dev/basics?id=parsing-data what about others?
 - can we keep the array syntax as a backup? if not, then the "no validation" syntax would be weird, like {"$.foo": null}
 
-wildcardKeys - how does it work with types?
-
 benchmark?
 
 should examples use for await? fromAsync? pipeTo? for await with helper?
+
+Would be nice to emit multiIndex property like in e6decb064d6a8ba9594c33a5d9f9e6dc5acd74d7 but I couldn't figure out how to get it to play nice with TypeScript
+
+export types from index.ts
+
+Some schema validation libraries clone the object when validating, but others don't.
+
+- not worth adding an option because it's rarely a problem and when it is you should probably handle it yourself, but there should be some warning in the manual about when it matters (when you have objects that overlap, and you're not using a schema library that clones when it validates - zod/valibot seem to clone, arktype seems to not)
+
+More examples
 
 ## Future
 
@@ -246,5 +252,3 @@ More JSONPath stuff https://www.rfc-editor.org/rfc/rfc9535.html
   - @ referencing this object
   - $ referencing root object
 - .. deep scan
-
-Would be nice to emit multiIndex property like in e6decb064d6a8ba9594c33a5d9f9e6dc5acd74d7 but I couldn't figure out how to get it to play nice with TypeScript
