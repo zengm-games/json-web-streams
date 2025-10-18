@@ -20,7 +20,7 @@ Imagine you have some JSON like:
 [{ "x": 1 }, { "x": 2 }, { "x": 3 }]
 ```
 
-You can just `JSON.parse` it and then do whatever you want. But what if it's so big that it's very slow to do that, or you even run out of memory?
+You can just `JSON.parse` it and then do whatever you want. But what if it's so large that parsing it all at once is slow or impossible?
 
 By using json-web-streams, you can stream through the JSON object without having to read it all into memory. Here's an example that prints out each object as it is parsed:
 
@@ -85,15 +85,16 @@ but you can have as many as you want:
 ["$.foo[*]", "$.bar", "$.bar.baz"]
 ```
 
-json-web-streams only supports a subset of JSONPath. See the [JSONPath](#jsonpath) section below for more details and examples. But to briefly explain what a typical JSONPath query means:
-
-`$.foo[*]` can be broken into three parts:
-
-- `$` refers to the root node of the JSON object
-- `.foo` is similar to accessing an object property in JS, so this is the `foo` property of the root node
-- `[*]` means "every value in this array or object"
-
-So in total this query means "emit every value in the array/object in the `foo` property of the overall JSON object". So for this JSON `{ foo: ["A", "B", "C"] }` it would emit the three values `"A"`, `"B"`, and `"C"`.
+> [!IMPORTANT]
+> **json-web-streams only supports a subset of JSONPath.** See the [JSONPath](#jsonpath) section below for more details and examples. But to briefly explain what a typical JSONPath query means:
+>
+> `$.foo[*]` can be broken into three parts:
+>
+> `$` refers to the root node of the JSON object\
+> `.foo` is similar to accessing an object property in JS, so this is the `foo` property of the root node\
+> `[*]` means "every value in this array or object"
+>
+> In total this query means "emit every value in the array/object in the `foo` property of the overall JSON object". So for this JSON `{ foo: ["A", "B", "C"] }` it would emit the three values `"A"`, `"B"`, and `"C"`.
 
 The values of the `jsonPaths` array can either be `JSONPath` strings, or objects like `{ path: JSONPath; schema: StandardSchemaV1 }` where `schema` is a schema validator from any library supporting the [Standard Schema specification](https://github.com/standard-schema/standard-schema) such as Zod, Valibot, or ArkType. When you supply a schema like this, each value will be validated before it is emitted by the stream, and emitted values will have correct TypeScript types rather than being `unknown`. For more details, see the [Schema validation and types for `JSONParseStream` output](#schema-validation-and-types-for-jsonparsestream-output) section below.
 
@@ -128,14 +129,14 @@ const stream = response.body
 Output from `JSONParseStream` has this format:
 
 ```ts
-{
-    value: unknown,
-    path: JSONPath,
-    wildcardKeys?: string[],
-}
+type JSONParseStreamOutput<T = unknown> = {
+	value: T;
+	path: JSONPath;
+	wildcardKeys?: string[];
+};
 ```
 
-`value` is the value selected from one of your JSONPath queries.
+`value` is the value selected by one of your JSONPath queries.
 
 `path` is the JSONPath query (from the `jsonPaths` parameter of `JSONParseStream`) that matched `value`.
 
@@ -278,7 +279,7 @@ Let's say you have this JSON:
 { "foo": [1, 2], "bar": ["a", "b", "c"] }
 ```
 
-You want to get all the values in `foo` and all the values in `bar`. You could define them as two separate JSONPaht queries and then distinguish the output with `.path`:
+You want to get all the values in `foo` and all the values in `bar`. You could define them as two separate JSONPath queries and then distinguish the output with `.path`:
 
 <!-- prettier-ignore -->
 ```ts
@@ -330,7 +331,7 @@ await new ReadableStream({
 	);
 ```
 
-Using multiple JSONPath queries is a little more explicit, but using wildcad keys is more concise, especially if you had more than just two types of objects. And instead of known keys like `foo` and `bar` your JSON had some unknown keys, then using a wildcard would be your only option.
+Using multiple JSONPath queries is a little more explicit, but using wildcard keys is more concise, especially if you had more than just two types of objects. And instead of known keys like `foo` and `bar` your JSON had some unknown keys, then using a wildcard would be your only option.
 
 But a nice thing about multiple JSONPath queries is that you can add schema validation to ensure your data is the correct format and give you nice TypeScript types. Whereas if you are using `wildcardKeys` to distinguish types, there is currently no way to use that information in schema validation.
 
@@ -364,14 +365,6 @@ await new ReadableStream({
 		}),
 	);
 ```
-
-## Plan
-
-benchmark?
-
-More examples?
-
-is "emit" a good word to use?
 
 ## Future
 
