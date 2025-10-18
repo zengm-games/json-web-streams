@@ -12,7 +12,7 @@
 npm install json-web-streams
 ```
 
-## Basic example
+## Getting started
 
 Imagine you have some JSON like:
 
@@ -46,7 +46,7 @@ await response.body
 ```
 
 > [!TIP]
-> If you don't have to support Safari, [most other environments](https://caniuse.com/mdn-api_readablestream_--asynciterator) let you use this nice syntax for consuming stream output as an async iterator:
+> If you don't have to support Safari, [most other environments](https://caniuse.com/mdn-api_readablestream_--asynciterator) let you use a nicer syntax for consuming stream output as an async iterator:
 >
 > ```ts
 > const stream = response.body
@@ -66,11 +66,11 @@ const jsonParseStream = new JSONParseStream(
 );
 ```
 
-### `jsonpaths: (JSONPath | { path: JSONPath; schema: StandardSchemaV1 })[]`
+### `jsonPaths: (JSONPath | { path: JSONPath; schema: StandardSchemaV1 })[]`
 
-The first argument to `JSONParseStream` is an array specifying what objects to emit from the stream. Here the `JSONPath` type is a string containing a [JSONPath](https://en.wikipedia.org/wiki/JSONPath) query. JSONPath is a query language for JSON to let you pick out specific items from your whole JSON object.
+The first argument to `JSONParseStream` is an array specifying what objects to emit from the stream. The `JSONPath` type is a string containing a [JSONPath](https://en.wikipedia.org/wiki/JSONPath) query. JSONPath is a query language for JSON to let you pick out specific items from your whole JSON object.
 
-(The `JSONPath` type here is just a slightly more restrictive version of a string. I wish it could completely parse and validate the JSONPath syntax, but currently it just enforces some little things like that it must start with a `$`.)
+(The `JSONPath` type is just a slightly more restrictive version of a string. I wish it could completely parse and validate the JSONPath syntax, but currently it just enforces some little things like that it must start with a `$`.)
 
 In many cases, you'll just have one JSONPath query, like:
 
@@ -84,16 +84,15 @@ but you can have as many as you want:
 ["$.foo[*]", "$.bar", "$.bar.baz"]
 ```
 
-json-web-streams only supports a subset of JSONPath. Currently the supported components are:
+json-web-streams only supports a subset of JSONPath. See the [JSONPath](#jsonpath) section below for more details. But to briefly explain what a typical JSONPath query means:
 
-- **Name selectors** which are like accessing a property in a JS object. For instance if you have an object like `{ "foo": { bar: 5 } }`, then `$.foo.bar` refers to the value `5`. You can also write this in the more verbose bracket notation like `$["foo"]["bar"]` or `$["foo", "bar"]`, which is useful if your key names include characters that need escaping. You can also mix them like `$.foo["bar"]` or use single quotes like `$['foo']['bar']` - all of these JSONPath queries have the same meaning.
+`$.foo[*]` can be broken into three parts:
 
-- **Wildcard selectors** which select every value in an array or object. For object values, with an object like `{ "foo": { "a": 1, "b": 2, "c": 3 } }`, the JSONPath query `$.foo[*]` would emit the three individual numbers `1`, `2`, and `3`. And for array values, with an object `{ "foo": [1, 2, 3] }`, the same JSONPath query `$.foo[*]` would emit those same values.
+- `$` refers to the root node of the JSON object
+- `.foo` is similar to accessing an object property in JS, so this is the `foo` property of the root node
+- `[*]` means "every value in this array or object"
 
-> [!TIP]
-> You can combine these selectors as deep as you want. For instance, if instead you have an array of objects rather than numbers like in the previous example, you can select values inside those individual objects with a query like `$.foo[*].bar`.
-
-See the [JSONPath examples](#jsonpath-examples) section below for more examples.
+So in total this query means "emit every value in the array/object in the `foo` property of the overall JSON object"
 
 The values of the `jsonPaths` array can either be `JSONPath` strings, or an object like `{ path: JSONPath; schema: StandardSchemaV1 }` where `schema` is a schema validator from any library supporting the [Standard Schema specification](https://github.com/standard-schema/standard-schema), such as Zod, Valibot, and ArkType. When you supply a schema like this, each object will be validated before it is emitted by the stream, and emitted objects will have correct TypeScript types rather than being `unknown`. More details and examples are in the [Schema validation and types for `JSONParseStream` output](#schema-validation-and-types-for-jsonparsestream-output) section below.
 
@@ -233,21 +232,30 @@ await new ReadableStream({
 
 For JSONPath queries with no schema, emitted values will have the `unknown` type.
 
-## JSONPath examples
+## JSONPath
 
-`$.foo[*]` (or `$['foo'][*]` or `$["foo"][*]` in bracket notation) means "every element of the array inside the property "foo" of the root object". Like if you had this data:
+json-web-streams supports a subset of JSONPath. Currently the supported components are:
+
+- **The root node** is represented by the symbol `$` and must be the first character of any JSONPath query.
+
+- **Name selectors** which are like accessing a property in a JS object. For instance if you have an object like `{ "foo": { bar: 5 } }`, then `$.foo.bar` refers to the value `5`. You can also write this in the more verbose bracket notation like `$["foo"]["bar"]` or `$["foo", "bar"]`, which is useful if your key names include characters that need escaping. You can also mix them like `$.foo["bar"]` or use single quotes like `$['foo']['bar']` - all of these JSONPath queries have the same meaning.
+
+- **Wildcard selectors** which select every value in an array or object. With this jSON `{ "foo": { "a": 1, "b": 2, "c": 3 } }`, the JSONPath query `$.foo[*]` would emit the three individual numbers `1`, `2`, and `3`. If the inner object was changed to an array like `{ "foo": [1, 2, 3] }`, the same JSONPath query would emit the same values.
+
+You can combine these selectors as deep as you want. For instance, if instead you have an array of objects rather than numbers like in the previous example, you can select values inside those individual objects with a query like `$.foo[*].bar`. Applying that to this data:
 
 ```json
-{ "foo": [{ "x": 1 }, { "x": 2 }, { "x": 3 }] }
+{ "foo": [{ "bar": 1 }, { "bar": 2 }, { "bar": 3 }] }
 ```
 
-It would emit `{ x: 1 }`, `{ x: 2 }`, and `{ x: 3 }`.
+It would emit `1`, `2`, and `3`.
 
-For a property inside the array (like getting all the values of `x` from `{ "foo": [{ "x": 1 }, { "x": 2 }, { "x": 3 }] }`), you'd write it as `$.foo[*].x` and it would emit the values `1`, `2`, and `3`.
+Or if the array is at the root if the object like the initial example `[{ "x": 1 }, { "x": 2 }, { "x": 3 }]` then you'd write something like `$[*]` to emit each object (`{ x: 1}`, `{x: 2}`, `{x: 3}`), or `$[*].key` to emit just the numbers (`1`, `2`, `3`).
 
-Or if the array is at the root if the object like the initial example `[{ "x": 1 }, { "x": 2 }, { "x": 3 }]` then you'd write something like `$[*]` to emit each object, or `$[*].key` to emit just the numbers.
+And to emit the whole object at once (okay in that case you wouldn't use this library, but maybe just for testing, or for `multi` mode) you just use `$`.
 
-And to collect the whole object (okay in that case you wouldn't use this library, but maybe just for testing, or for `multi` mode) you just use `$`.
+> [!TIP]
+> If you want to play around with JSONPath queries to make sure you understand what they are doing, [jsonpath.com](https://jsonpath.com/) is a great website that lets you easily run a JSONPath query on some data.
 
 ## JSONParseStream examples
 
@@ -353,10 +361,6 @@ await new ReadableStream({
 ## Plan
 
 benchmark?
-
-too much jsonpath docs at the front, should move to examples section?
-
-link to https://jsonpath.com/
 
 More examples?
 

@@ -1,4 +1,4 @@
-// This is based on https://github.com/qwtel/jsonparse/ but assumes the input is already a utf8 string, so it gets rid of a lot of complexity dealing with character encoding. It runs much faster too!
+// This is based on https://github.com/qwtel/jsonparse/ by Florian Klampfer but assumes the input is already a utf8 string, so it gets rid of a lot of complexity dealing with character encoding, and also seems to make it faster. That library in turn was based on https://github.com/creationix/jsonparse by Tim Caswell. Both of those libraries were released under the MIT license.
 
 type Token =
 	| "LEFT_BRACE"
