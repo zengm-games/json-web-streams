@@ -1,6 +1,6 @@
 # json-web-streams
 
-[![Build Status](https://github.com/zengm-games/json-web-streams/actions/workflows/test.yml/badge.svg)](https://github.com/zengm-games/json-web-streams/actions/workflows/test.yml)
+[![Build Status](https://github.com/zengm-games/json-web-streams/actions/workflows/test.yaml/badge.svg)](https://github.com/zengm-games/json-web-streams/actions/workflows/test.yaml)
 [![GitHub Repo stars](https://img.shields.io/github/stars/zengm-games/json-web-streams)](https://github.com/zengm-games/json-web-streams)
 [![GitHub](https://img.shields.io/github/license/zengm-games/json-web-streams)](https://github.com/zengm-games/json-web-streams)
 [![npm](https://img.shields.io/npm/v/json-web-streams)](https://www.npmjs.com/package/json-web-streams)
