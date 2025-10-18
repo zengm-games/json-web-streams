@@ -26,6 +26,7 @@
 		"lint": "npm-run-all --parallel lint:oxlint lint:tsc",
 		"lint:oxlint": "oxlint --type-aware",
 		"lint:tsc": "tsc",
+		"prepack": "node --run build",
 		"prepare": "husky",
 		"test": "vitest"
 	},
