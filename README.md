@@ -27,6 +27,7 @@ By using json-web-streams, you can stream through the JSON object without having
 ```ts
 import { JSONParseStream } from "json-web-streams";
 
+// data.json contains: [{ "x": 1 }, { "x": 2 }, { "x": 3 }]
 const response = await fetch("https://example.com/data.json");
 await response.body
 	.pipeThrough(new TextDecoderStream())
@@ -68,7 +69,7 @@ const jsonParseStream = new JSONParseStream(
 
 ### `jsonPaths: (JSONPath | { path: JSONPath; schema: StandardSchemaV1 })[]`
 
-The first argument to `JSONParseStream` is an array specifying what objects to emit from the stream. The `JSONPath` type is a string containing a [JSONPath](https://en.wikipedia.org/wiki/JSONPath) query. JSONPath is a query language for JSON to let you pick out specific items from your whole JSON object.
+The first argument to `JSONParseStream` is an array specifying what objects to emit from the stream. The `JSONPath` type is a string containing a JSONPath query. JSONPath is a query language for JSON to let you pick out specific values from a JSON object.
 
 (The `JSONPath` type is just a slightly more restrictive version of a string. I wish it could completely parse and validate the JSONPath syntax, but currently it just enforces some little things like that it must start with a `$`.)
 
@@ -84,7 +85,7 @@ but you can have as many as you want:
 ["$.foo[*]", "$.bar", "$.bar.baz"]
 ```
 
-json-web-streams only supports a subset of JSONPath. See the [JSONPath](#jsonpath) section below for more details. But to briefly explain what a typical JSONPath query means:
+json-web-streams only supports a subset of JSONPath. See the [JSONPath](#jsonpath) section below for more details and examples. But to briefly explain what a typical JSONPath query means:
 
 `$.foo[*]` can be broken into three parts:
 
@@ -92,13 +93,13 @@ json-web-streams only supports a subset of JSONPath. See the [JSONPath](#jsonpat
 - `.foo` is similar to accessing an object property in JS, so this is the `foo` property of the root node
 - `[*]` means "every value in this array or object"
 
-So in total this query means "emit every value in the array/object in the `foo` property of the overall JSON object"
+So in total this query means "emit every value in the array/object in the `foo` property of the overall JSON object". So for this JSON `{ foo: ["A", "B", "C"] }` it would emit the three values `"A"`, `"B"`, and `"C"`.
 
-The values of the `jsonPaths` array can either be `JSONPath` strings, or an object like `{ path: JSONPath; schema: StandardSchemaV1 }` where `schema` is a schema validator from any library supporting the [Standard Schema specification](https://github.com/standard-schema/standard-schema), such as Zod, Valibot, and ArkType. When you supply a schema like this, each object will be validated before it is emitted by the stream, and emitted objects will have correct TypeScript types rather than being `unknown`. More details and examples are in the [Schema validation and types for `JSONParseStream` output](#schema-validation-and-types-for-jsonparsestream-output) section below.
+The values of the `jsonPaths` array can either be `JSONPath` strings, or objects like `{ path: JSONPath; schema: StandardSchemaV1 }` where `schema` is a schema validator from any library supporting the [Standard Schema specification](https://github.com/standard-schema/standard-schema) such as Zod, Valibot, or ArkType. When you supply a schema like this, each value will be validated before it is emitted by the stream, and emitted values will have correct TypeScript types rather than being `unknown`. For more details, see the [Schema validation and types for `JSONParseStream` output](#schema-validation-and-types-for-jsonparsestream-output) section below.
 
 ### `options?: { multi?: boolean }`
 
-There exist various [JSON streaming formats](https://en.wikipedia.org/wiki/JSON_streaming) that basically make it more convenient to stream JSON by omitting the opening/closing tags and instead emitting multiple JSON objects sequentially. Some of these formats are:
+There are various [JSON streaming formats](https://en.wikipedia.org/wiki/JSON_streaming) that make it more convenient to stream JSON by omitting the opening/closing tags and instead emitting multiple JSON objects sequentially. Some of these formats are:
 
 - JSON Lines (JSONL) aka Newline Delimited JSON (NDJSON) - JSON objects are separated by \n
 - JSON Text Sequences aka json-seq - JSON objects are separated by the unicode record separator character ␞
@@ -107,7 +108,7 @@ There exist various [JSON streaming formats](https://en.wikipedia.org/wiki/JSON_
 Setting `multi` to `true` enables support for all of those streaming JSON formats. It's actually a little more permissive - it allows any combination of whitespace and the unicode record separator between JSON objects.
 
 > [!TIP]
-> If you want to emit every one of these individual JSON objects, use the JSONPath query `$` which normally means "emit the entire object", but in `multi` mode it will emit each of the individual objects.
+> If you want to emit every one of these individual JSON objects, use the JSONPath query `$` which means "emit the entire object", so in `multi` mode it will emit each of the individual objects.
 
 ### `JSONParseStream` input
 
@@ -236,23 +237,29 @@ For JSONPath queries with no schema, emitted values will have the `unknown` type
 
 json-web-streams supports a subset of JSONPath. Currently the supported components are:
 
-- **The root node** is represented by the symbol `$` and must be the first character of any JSONPath query.
+- **The root node**, represented by the symbol `$` which must be the first character of any JSONPath query.
 
 - **Name selectors** which are like accessing a property in a JS object. For instance if you have an object like `{ "foo": { bar: 5 } }`, then `$.foo.bar` refers to the value `5`. You can also write this in the more verbose bracket notation like `$["foo"]["bar"]` or `$["foo", "bar"]`, which is useful if your key names include characters that need escaping. You can also mix them like `$.foo["bar"]` or use single quotes like `$['foo']['bar']` - all of these JSONPath queries have the same meaning.
 
-- **Wildcard selectors** which select every value in an array or object. With this jSON `{ "foo": { "a": 1, "b": 2, "c": 3 } }`, the JSONPath query `$.foo[*]` would emit the three individual numbers `1`, `2`, and `3`. If the inner object was changed to an array like `{ "foo": [1, 2, 3] }`, the same JSONPath query would emit the same values.
+- **Wildcard selectors** which select every value in an array or object. With this JSON `{ "foo": { "a": 1, "b": 2, "c": 3 } }`, the JSONPath query `$.foo[*]` would emit the three individual numbers `1`, `2`, and `3`. If the inner object was changed to an array like `{ "foo": [1, 2, 3] }`, the same JSONPath query would emit the same values.
 
-You can combine these selectors as deep as you want. For instance, if instead you have an array of objects rather than numbers like in the previous example, you can select values inside those individual objects with a query like `$.foo[*].bar`. Applying that to this data:
+You can combine these selectors as deep as you want. For instance, if instead you have an array of objects you can select values inside those individual objects with a query like `$.foo[*].bar`. Applying that to this data:
 
 ```json
 { "foo": [{ "bar": 1 }, { "bar": 2 }, { "bar": 3 }] }
 ```
 
-It would emit `1`, `2`, and `3`.
+would emit `1`, `2`, and `3`.
 
-Or if the array is at the root if the object like the initial example `[{ "x": 1 }, { "x": 2 }, { "x": 3 }]` then you'd write something like `$[*]` to emit each object (`{ x: 1}`, `{x: 2}`, `{x: 3}`), or `$[*].key` to emit just the numbers (`1`, `2`, `3`).
+Or if the array is at the root if the object like this data:
 
-And to emit the whole object at once (okay in that case you wouldn't use this library, but maybe just for testing, or for `multi` mode) you just use `$`.
+```json
+[{ "x": 1 }, { "x": 2 }, { "x": 3 }]
+```
+
+then you'd write something like `$[*]` to emit each object (`{ x: 1}`, `{x: 2}`, `{x: 3}`), or `$[*].key` to emit just the numbers (`1`, `2`, `3`).
+
+To emit the whole object at once (okay in that case you wouldn't use this library, but maybe just for testing, or for `multi` mode) you just use `$`.
 
 > [!TIP]
 > If you want to play around with JSONPath queries to make sure you understand what they are doing, [jsonpath.com](https://jsonpath.com/) is a great website that lets you easily run a JSONPath query on some data.
@@ -363,6 +370,8 @@ await new ReadableStream({
 benchmark?
 
 More examples?
+
+is "emit" a good word to use?
 
 ## Future
 
