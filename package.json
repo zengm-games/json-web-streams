@@ -1,6 +1,6 @@
 {
 	"name": "json-web-streams",
-	"version": "0.0.0",
+	"version": "0.0.1",
 	"description": "Streaming JSON parser built on top of the Web Streams API, so it works in web browsers, Node.js, and many other environments",
 	"keywords": [
 		"web streams",
