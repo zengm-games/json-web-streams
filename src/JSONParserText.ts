@@ -98,15 +98,12 @@ class JSONParserText {
 
 			// Handle any non-whitespace after the root object has closed
 			if (
+				!this.multi &&
 				this.stack.length === 0 &&
 				this.seenRootObject &&
 				!WHITESPACE.has(n)
 			) {
-				if (this.multi) {
-					this.multiIndex += 1;
-				} else {
-					return this.charError(n, i);
-				}
+				return this.charError(n, i);
 			}
 
 			if (this.tokenizerState === "START") {
