@@ -1,5 +1,11 @@
 # json-web-streams
 
+[![Build Status](https://github.com/zengm-games/json-web-streams/actions/workflows/test.yml/badge.svg)](https://github.com/zengm-games/json-web-streams/actions/workflows/test.yml)
+[![GitHub Repo stars](https://img.shields.io/github/stars/zengm-games/json-web-streams)](https://github.com/zengm-games/json-web-streams)
+[![GitHub](https://img.shields.io/github/license/zengm-games/json-web-streams)](https://github.com/zengm-games/json-web-streams)
+[![npm](https://img.shields.io/npm/v/json-web-streams)](https://www.npmjs.com/package/json-web-streams)
+[![npm](https://img.shields.io/npm/dm/json-web-streams)](https://www.npmjs.com/package/json-web-streams)
+
 - **Stream large JSON files** without loading everything into memory
 - Built on the **Web Streams API** so it runs in web browsers, Node.js, and more
 - Query with **JSONPath** to extract only the data you need
