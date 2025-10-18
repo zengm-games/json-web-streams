@@ -146,6 +146,11 @@ export class JSONParseStream<
 							schema,
 							wildcardIndexes,
 						} of jsonPathInfos) {
+							// If stackPathArray is shorter than pathArray, can short circuit because we need pathArray to be a subset of stackPathArray to do anything below, and this avoids the more expensive pathArray.every call
+							if (stackPathArray.length < pathArray.length) {
+								continue;
+							}
+
 							if (pathArray.every((x, j) => isEqual(x, stackPathArray[j]))) {
 								if (stackPathArray.length === pathArray.length) {
 									// Exact match of pathArray - emit record, and we don't need to keep it any more for this pathArray
