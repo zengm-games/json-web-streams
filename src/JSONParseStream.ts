@@ -6,20 +6,24 @@ import {
 	type PathArray,
 } from "./jsonPathToPathArray.ts";
 
-const stackToPathArray = (stack: Stack): PathArray => {
-	return stack.slice(1).map((row) => {
-		if (row.mode === "OBJECT" && row.key !== undefined) {
-			// row.key is number | string, but when mode is OBJECT it is always a string, number is for ARRAY
-			const value = row.key as string;
-			return { type: "key", value };
-		}
-		if (row.mode === "ARRAY") {
-			return { type: "wildcard" };
-		}
+const stackToPathComponent = (
+	stackComponent: Stack[number],
+): PathArray[number] => {
+	if (stackComponent.mode === "OBJECT" && stackComponent.key !== undefined) {
+		// stackComponent.key is number | string, but when mode is OBJECT it is always a string, number is for ARRAY
+		const value = stackComponent.key as string;
+		return { type: "key", value };
+	}
+	if (stackComponent.mode === "ARRAY") {
+		return { type: "wildcard" };
+	}
 
-		throw new Error(`Unexpected mode "${row.mode}"`);
-	});
+	throw new Error(`Unexpected mode "${stackComponent.mode}"`);
 };
+
+/*const stackToPathArray = (stack: Stack): PathArray => {
+	return stack.slice(1).map(stackToPathComponent);
+};*/
 
 // x - from JSONPath query
 // y - from parsing JSON data
@@ -115,8 +119,22 @@ export class JSONParseStream<
 			start(controller) {
 				parser = new JSONParserText({
 					multi,
-					onValue: (value, stack) => {
-						const stackPathArray = stackToPathArray(stack);
+					onValue: (value) => {
+						const stackPathArray = parser.stack
+							.slice(1)
+							.map((x) => stackToPathComponent(x));
+
+						// Uses current parser values (value, key, mode) - faster than combining arrays with destructuring or something
+						// length 0 check is because the first entry is always ignored, but this might be the first entry
+						if (parser.stack.length > 0) {
+							stackPathArray.push(
+								stackToPathComponent({
+									value: parser.value,
+									key: parser.key,
+									mode: parser.mode,
+								}),
+							);
+						}
 						// console.log("value", value);
 						// console.log("path", path);
 						// console.log("stack", stack);

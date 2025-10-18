@@ -133,11 +133,11 @@ describe("Streaming", () => {
 		// Monkey patch to track the size of the stack
 		const monkeyPatch = (stream: JSONParseStream<any>) => {
 			const prevOnValue = stream._parser.onValue;
-			stream._parser.onValue = (value, stack) => {
+			stream._parser.onValue = (...params) => {
 				// This is not a very accurate way to get stack size, but works enough for these purposes.
-				const stackSize = JSON.stringify(stack).length;
+				const stackSize = JSON.stringify(stream._parser.stack).length;
 				maxStackSize = Math.max(maxStackSize, stackSize);
-				prevOnValue(value, stack);
+				prevOnValue(...params);
 			};
 			return stream;
 		};

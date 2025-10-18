@@ -50,7 +50,7 @@ export type Stack = {
 	mode: Mode | undefined;
 }[];
 
-type OnValue = (value: Value, stack: Stack) => void;
+type OnValue = (value: Value) => void;
 
 const WHITESPACE = new Set([" ", "\t", "\n", "\r"]);
 
@@ -104,9 +104,6 @@ class JSONParserText {
 				!WHITESPACE.has(n)
 			) {
 				return this.charError(n, i);
-			}
-
-			if (this.multi && this.stack.length === 0 && this.seenRootObject) {
 			}
 
 			if (this.tokenizerState === "START") {
@@ -374,14 +371,13 @@ class JSONParserText {
 		if (this.mode) {
 			this.state = "COMMA";
 		}
-		this.onValue(value, [
-			...this.stack,
-			{
-				value: this.value,
-				key: this.key,
-				mode: this.mode,
-			},
-		]);
+
+		if (value === undefined) {
+			// Must have been deleted by JSONParseStream as irrelevant, so no need to emit
+			return;
+		}
+
+		this.onValue(value);
 	}
 
 	onToken(token: Token, value: Value, i: number) {
