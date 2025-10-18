@@ -365,32 +365,3 @@ await new ReadableStream({
 		}),
 	);
 ```
-
-## Future
-
-JSONStringifyStream - Whenever I've had to do this in the past, it winds up being some messy ad hoc thing, but also it's a lot easier to write than messy ad hoc parsing code. So this is less valuable than JSONParseStream, and I'm less sure what the API should be.
-
-Would be nice to emit multiIndex property like in e6decb064d6a8ba9594c33a5d9f9e6dc5acd74d7 but the TypeScript gets complicated
-
-More JSONPath stuff https://www.rfc-editor.org/rfc/rfc9535.html
-
-- in array (stackToPathArray will need to get more specific than assuming every array is "wildcard")
-  - index
-  - negative index
-  - slice with one side unbounded
-  - slice with negative index and one side unbounded
-  - slice between two numbers
-  - step size like 1:2:9, in all of the above situations
-  - filter expression (starting with ?)
-- functions at tail end of path (like min, max, etc)
-  - can there be multiple?
-  - @ referencing this object
-  - $ referencing root object
-- .. deep scan
-
-better JSONPath type
-
-more concise examples, when browser support is better
-
-- consume with for await rather than WriteableStream
-- use ReadableStream.from rather than more verbose syntax

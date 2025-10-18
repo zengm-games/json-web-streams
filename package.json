@@ -1,14 +1,19 @@
 {
 	"name": "json-web-streams",
-	"version": "0.0.1",
+	"version": "0.0.0",
 	"description": "Streaming JSON parser built on top of the Web Streams API, so it works in web browsers, Node.js, and many other environments",
 	"keywords": [
 		"web streams",
 		"TransformStream",
 		"JSON"
 	],
+	"homepage": "https://github.com/zengm-games/json-web-streams",
+	"repository": {
+		"type": "git",
+		"url": "git://github.com/zengm-games/json-web-streams.git"
+	},
 	"license": "Apache-2.0",
-	"author": "",
+	"author": "Jeremy Scheff <jeremy@zengm.com> (https://zengm.com/)",
 	"type": "module",
 	"main": "dist/index.js",
 	"types": "dist/index.d.ts",
@@ -33,7 +38,7 @@
 	},
 	"devDependencies": {
 		"@ianvs/prettier-plugin-sort-imports": "^4.7.0",
-		"@types/node": "^24.7.2",
+		"@types/node": "^24.8.1",
 		"husky": "^9.1.7",
 		"lint-staged": "^16.2.4",
 		"npm-run-all2": "^8.0.4",
@@ -46,8 +51,8 @@
 		"vitest": "^3.2.4",
 		"zod": "^4.1.12"
 	},
-	"packageManager": "pnpm@10.18.2",
 	"engines": {
-		"node": ">=22"
+		"node": ">=22",
+		"pnpm": "^10.0.0"
 	}
 }
