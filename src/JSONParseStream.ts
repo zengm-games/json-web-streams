@@ -81,6 +81,7 @@ export class JSONParseStream<
 		const multi = options?.multi ?? false;
 
 		const jsonPathInfos: {
+			failedAtPathDepth: number | undefined;
 			path: JSONPath;
 			pathArray: PathArray;
 			schema: StandardSchemaV1 | undefined;
@@ -108,12 +109,15 @@ export class JSONParseStream<
 			}
 
 			return {
+				failedAtPathDepth: undefined,
 				path,
 				pathArray,
 				schema,
 				wildcardIndexes,
 			};
 		});
+
+		let prevMultiIndex = 0;
 
 		super({
 			start(controller) {
@@ -139,19 +143,48 @@ export class JSONParseStream<
 						// console.log("path", path);
 						// console.log("stack", stack);
 
+						if (multi && parser.multiIndex !== prevMultiIndex) {
+							// Reset failedAtPathDepth because this is a new multi object so anything could match or not here
+							for (const info of jsonPathInfos) {
+								info.failedAtPathDepth = undefined;
+							}
+						}
+
 						let keep = false;
-						for (const {
-							path,
-							pathArray,
-							schema,
-							wildcardIndexes,
-						} of jsonPathInfos) {
+						for (const info of jsonPathInfos) {
+							const { path, pathArray, schema, wildcardIndexes } = info;
+
 							// If stackPathArray is shorter than pathArray, can short circuit because we need pathArray to be a subset of stackPathArray to do anything below, and this avoids the more expensive pathArray.every call
 							if (stackPathArray.length < pathArray.length) {
 								continue;
 							}
 
-							if (pathArray.every((x, j) => isEqual(x, stackPathArray[j]))) {
+							// This saves iterating over pathArray and calculating if it matches stackPathArray, since we know it must match at this component or it never will. Once it matches this component, then below we iterate over pathArray and see if the whole thing matches. If not, we'll be back here next time with a new failedAtPathDepth
+							if (info.failedAtPathDepth !== undefined) {
+								const stackPathComponent =
+									stackPathArray[info.failedAtPathDepth];
+								if (
+									!isEqual(
+										stackPathArray[info.failedAtPathDepth]!,
+										stackPathComponent,
+									)
+								) {
+									continue;
+								} else {
+									info.failedAtPathDepth = undefined;
+								}
+							}
+
+							for (const [j, x] of pathArray.entries()) {
+								if (!isEqual(x, stackPathArray[j])) {
+									if (stackPathArray[j] !== undefined) {
+										info.failedAtPathDepth = j;
+									}
+									break;
+								}
+							}
+
+							if (info.failedAtPathDepth === undefined) {
 								if (stackPathArray.length === pathArray.length) {
 									// Exact match of pathArray - emit record, and we don't need to keep it any more for this pathArray
 
@@ -206,34 +239,34 @@ export class JSONParseStream<
 									// Matches pathArray, but is nested deeper - still building the record to emit later
 									keep = true;
 								}
-							} else {
-								// Doesn't match pathArray, don't need to keep, but only worry about arrays/objects. Or delete this branch and it will overwrite these primitive values too.
-								const type = typeof value;
-								if (
-									type === "string" ||
-									type === "number" ||
-									type === "boolean" ||
-									value === null
-								) {
-									keep = true;
-								}
 							}
 						}
 						// console.log("Keep?", keep, "\n");
 
 						if (!keep) {
-							// Now that we have emitted the object we want, we no longer need to keep track of all the values on the stack. This avoids keeping the whole JSON object in memory.
-							for (const row of parser.stack) {
-								row.value = undefined;
-							}
-
-							// Also, when processing an array/object, this.value will contain the current state of the array/object. So we should delete the value there too, but leave the array/object so it can still be used by the parser
+							// Doesn't match pathArray, don't need to keep, but only worry about arrays/objects. Or delete this branch and it will overwrite these primitive values too.
+							const type = typeof value;
 							if (
-								typeof parser.value === "object" &&
-								parser.value !== null &&
-								parser.key !== undefined
+								!(
+									type === "string" ||
+									type === "number" ||
+									type === "boolean" ||
+									value === null
+								)
 							) {
-								delete parser.value[parser.key];
+								// Now that we have emitted the object we want, we no longer need to keep track of all the values on the stack. This avoids keeping the whole JSON object in memory.
+								for (const row of parser.stack) {
+									row.value = undefined;
+								}
+
+								// Also, when processing an array/object, this.value will contain the current state of the array/object. So we should delete the value there too, but leave the array/object so it can still be used by the parser
+								if (
+									typeof parser.value === "object" &&
+									parser.value !== null &&
+									parser.key !== undefined
+								) {
+									delete parser.value[parser.key];
+								}
 							}
 						}
 					},
