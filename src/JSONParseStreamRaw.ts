@@ -54,7 +54,7 @@ type OnValue = (value: Value) => void;
 
 const WHITESPACE = new Set([" ", "\t", "\n", "\r"]);
 
-class JSONParserText {
+export class JSONParseStreamRaw {
 	tokenizerState: TokenizerState = "START";
 	state: Token | ParserState = "VALUE";
 	mode: Mode | undefined;
@@ -504,5 +504,3 @@ class JSONParserText {
 		}
 	}
 }
-
-export default JSONParserText;

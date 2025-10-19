@@ -1,5 +1,5 @@
 import type { StandardSchemaV1 } from "@standard-schema/spec";
-import JSONParserText, { type Stack } from "./JSONParserText.ts";
+import { JSONParseStreamRaw, type Stack } from "./JSONParseStreamRaw.ts";
 import {
 	jsonPathToPathArray,
 	type JSONPath,
@@ -69,7 +69,7 @@ export class JSONParseStream<
 		| { path: JSONPath; schema: StandardSchemaV1 }
 	)[],
 > extends TransformStream<string, JSONParseStreamOutput<T[number]>> {
-	_parser: JSONParserText;
+	_parser: JSONParseStreamRaw;
 
 	constructor(
 		jsonPaths: T,
@@ -77,7 +77,7 @@ export class JSONParseStream<
 			multi?: boolean;
 		},
 	) {
-		let parser: JSONParserText;
+		let parser: JSONParseStreamRaw;
 		const multi = options?.multi ?? false;
 
 		const jsonPathInfos: {
@@ -117,7 +117,7 @@ export class JSONParseStream<
 
 		super({
 			start(controller) {
-				parser = new JSONParserText({
+				parser = new JSONParseStreamRaw({
 					multi,
 					onValue: (value) => {
 						const {
@@ -128,6 +128,7 @@ export class JSONParseStream<
 						} = parser;
 
 						const stackLength = parserStack.length;
+						// oxlint-disable-next-line no-redundant-type-constituents eslint-plugin-unicorn(no-new-array)
 						const stackPathArray: PathArray = new Array(stackLength);
 						for (let i = 1; i < stackLength; i++) {
 							stackPathArray[i - 1] = stackToPathComponent(parserStack[i]!);
