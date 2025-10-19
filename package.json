@@ -21,6 +21,7 @@
 		"dist"
 	],
 	"scripts": {
+		"bench": "vitest bench",
 		"build": "tsdown --unbundle",
 		"format": "prettier --write .",
 		"lint": "npm-run-all --parallel lint:oxlint lint:tsc",
