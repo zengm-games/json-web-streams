@@ -6,7 +6,7 @@ import {
 	type PathArray,
 } from "./jsonPathToPathArray.ts";
 
-const stackToPathComponent = (
+/*const stackToPathComponent = (
 	stackComponent: Stack[number],
 ): PathArray[number] => {
 	if (stackComponent.mode === "OBJECT" && stackComponent.key !== undefined) {
@@ -21,33 +21,33 @@ const stackToPathComponent = (
 	throw new Error(`Unexpected mode "${stackComponent.mode}"`);
 };
 
-/*const stackToPathArray = (stack: Stack): PathArray => {
+const stackToPathArray = (stack: Stack): PathArray => {
 	return stack.slice(1).map(stackToPathComponent);
 };*/
 
 // x - from JSONPath query
 // y - from parsing JSON data
-const isEqual = (x: PathArray[number], y: PathArray[number] | undefined) => {
+const isEqual = (x: PathArray[number], y: Stack[number] | undefined) => {
 	if (!y) {
 		return false;
 	}
 
-	if (x.type === y?.type) {
-		if (x.type === "wildcard") {
-			// Both are wildcard, meaning we're looking for wildcard and found array
+	if (x.type === "wildcard") {
+		if (y.mode === "ARRAY") {
+			// We're looking for wildcard and found array - match!
+			return true;
+		} else if (y.mode === "OBJECT") {
+			// Object values are fine for wildcard too
 			return true;
 		}
-
-		// Both must be key, in which case they are equal if the value of the key is the same
-		if (x.value === (y as any).value) {
+	} else {
+		// x.type is key, so we need to match that key exacty in the stack
+		if (y.mode === "OBJECT" && x.value === y.key) {
 			return true;
 		}
-
-		return false;
 	}
 
-	// One is wildcard and the other is key. This could still be a match if the wildcard is being used to get all the values of an object, rather than array. In this case, wildcard would be on x, since x is from the supplied JSONPath query.
-	return x.type === "wildcard";
+	return false;
 };
 
 type JSONParseStreamOutput<T> = T extends {
@@ -122,27 +122,11 @@ export class JSONParseStream<
 					onValue: (value) => {
 						const {
 							key: parserKey,
-							mode: parserMode,
+							//mode: parserMode,
 							stack: parserStack,
 							value: parserValue,
 						} = parser;
 
-						const stackLength = parserStack.length;
-						// oxlint-disable-next-line no-redundant-type-constituents eslint-plugin-unicorn(no-new-array)
-						const stackPathArray: PathArray = new Array(stackLength);
-						for (let i = 1; i < stackLength; i++) {
-							stackPathArray[i - 1] = stackToPathComponent(parserStack[i]!);
-						}
-
-						// Uses current parser values (value, key, mode) - faster than combining arrays with destructuring or something
-						// length 0 check is because the first entry is always ignored, but this might be the first entry
-						if (parserStack.length > 0) {
-							stackPathArray[stackLength - 1] = stackToPathComponent({
-								value: parserValue,
-								key: parserKey,
-								mode: parserMode,
-							});
-						}
 						// console.log("value", value);
 						// console.log("path", path);
 						// console.log("stack", stack);
@@ -154,13 +138,18 @@ export class JSONParseStream<
 							schema,
 							wildcardIndexes,
 						} of jsonPathInfos) {
-							// If stackPathArray is shorter than pathArray, can short circuit because we need pathArray to be a subset of stackPathArray to do anything below, and this avoids the more expensive pathArray.every call
-							if (stackPathArray.length < pathArray.length) {
+							// If parserStack is shorter than pathArray, can short circuit because we need pathArray to be a subset of parserStack to do anything below, and this avoids the more expensive pathArray.every call
+							// (Despite some differences in the elements of pathArray and parserStack, they actually do have comparable lengths)
+							if (parserStack.length < pathArray.length) {
 								continue;
 							}
 
-							if (pathArray.every((x, j) => isEqual(x, stackPathArray[j]))) {
-								if (stackPathArray.length === pathArray.length) {
+							if (
+								pathArray.every((x, j) =>
+									isEqual(x, parserStack[j + 1] ?? parser),
+								)
+							) {
+								if (parserStack.length === pathArray.length) {
 									// Exact match of pathArray - emit record, and we don't need to keep it any more for this pathArray
 
 									let valueToEmit;
@@ -185,12 +174,15 @@ export class JSONParseStream<
 									let wildcardKeys: string[] | undefined;
 									if (wildcardIndexes) {
 										for (const index of wildcardIndexes) {
-											const pathComponent = stackPathArray[index];
-											if (pathComponent?.type === "key") {
+											const stackComponent = parserStack[index + 1] ?? parser;
+											if (
+												stackComponent.mode === "OBJECT" &&
+												stackComponent.key !== undefined
+											) {
 												if (!wildcardKeys) {
 													wildcardKeys = [];
 												}
-												wildcardKeys.push(pathComponent.value);
+												wildcardKeys.push(stackComponent.key as string);
 											}
 										}
 									}
