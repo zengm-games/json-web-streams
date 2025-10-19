@@ -120,20 +120,27 @@ export class JSONParseStream<
 				parser = new JSONParserText({
 					multi,
 					onValue: (value) => {
-						const stackPathArray = parser.stack
-							.slice(1)
-							.map((x) => stackToPathComponent(x));
+						const {
+							key: parserKey,
+							mode: parserMode,
+							stack: parserStack,
+							value: parserValue,
+						} = parser;
+
+						const stackLength = parserStack.length;
+						const stackPathArray: PathArray = new Array(stackLength);
+						for (let i = 1; i < stackLength; i++) {
+							stackPathArray[i - 1] = stackToPathComponent(parserStack[i]!);
+						}
 
 						// Uses current parser values (value, key, mode) - faster than combining arrays with destructuring or something
 						// length 0 check is because the first entry is always ignored, but this might be the first entry
-						if (parser.stack.length > 0) {
-							stackPathArray.push(
-								stackToPathComponent({
-									value: parser.value,
-									key: parser.key,
-									mode: parser.mode,
-								}),
-							);
+						if (parserStack.length > 0) {
+							stackPathArray[stackLength - 1] = stackToPathComponent({
+								value: parserValue,
+								key: parserKey,
+								mode: parserMode,
+							});
 						}
 						// console.log("value", value);
 						// console.log("path", path);
@@ -176,15 +183,13 @@ export class JSONParseStream<
 
 									let wildcardKeys: string[] | undefined;
 									if (wildcardIndexes) {
-										if (wildcardIndexes) {
-											for (const index of wildcardIndexes) {
-												const pathComponent = stackPathArray[index];
-												if (pathComponent?.type === "key") {
-													if (!wildcardKeys) {
-														wildcardKeys = [];
-													}
-													wildcardKeys.push(pathComponent.value);
+										for (const index of wildcardIndexes) {
+											const pathComponent = stackPathArray[index];
+											if (pathComponent?.type === "key") {
+												if (!wildcardKeys) {
+													wildcardKeys = [];
 												}
+												wildcardKeys.push(pathComponent.value);
 											}
 										}
 									}
@@ -223,17 +228,17 @@ export class JSONParseStream<
 
 						if (!keep) {
 							// Now that we have emitted the object we want, we no longer need to keep track of all the values on the stack. This avoids keeping the whole JSON object in memory.
-							for (const row of parser.stack) {
+							for (const row of parserStack) {
 								row.value = undefined;
 							}
 
 							// Also, when processing an array/object, this.value will contain the current state of the array/object. So we should delete the value there too, but leave the array/object so it can still be used by the parser
 							if (
-								typeof parser.value === "object" &&
-								parser.value !== null &&
-								parser.key !== undefined
+								typeof parserValue === "object" &&
+								parserValue !== null &&
+								parserKey !== undefined
 							) {
-								delete parser.value[parser.key];
+								parserValue[parserKey] = undefined;
 							}
 						}
 					},
