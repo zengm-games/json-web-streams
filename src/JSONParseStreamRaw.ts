@@ -64,14 +64,14 @@ export class JSONParseStreamRaw {
 	key: Key | undefined;
 	value: Value;
 	position = 0;
-	onKey: OnPopPush;
-	onPop: OnPopPush;
-	onPush: OnPopPush;
+	onKey: OnPopPush | undefined;
+	onPop: OnPopPush | undefined;
+	onPush: OnPopPush | undefined;
 	onValue: OnValue;
 	unicode: string | undefined;
 	highSurrogate: number | undefined;
 	seenRootObject = false;
-	multi: boolean;
+	multi: boolean | undefined;
 	multiIndex = 0;
 
 	constructor({
@@ -81,10 +81,10 @@ export class JSONParseStreamRaw {
 		onPush,
 		onValue,
 	}: {
-		multi: boolean;
-		onKey: OnPopPush;
-		onPop: OnPopPush;
-		onPush: OnPopPush;
+		multi?: boolean;
+		onKey?: OnPopPush;
+		onPop?: OnPopPush;
+		onPush?: OnPopPush;
 		onValue: OnValue;
 	}) {
 		this.multi = multi;
@@ -372,7 +372,7 @@ export class JSONParseStreamRaw {
 
 	push() {
 		this.stack.push({ value: this.value, key: this.key, mode: this.mode });
-		this.onPush(this.stack.length);
+		this.onPush?.(this.stack.length);
 	}
 
 	pop() {
@@ -382,7 +382,7 @@ export class JSONParseStreamRaw {
 		this.key = parent.key;
 		this.mode = parent.mode;
 		this.emit(value);
-		this.onPop(this.stack.length);
+		this.onPop?.(this.stack.length);
 		if (!this.mode) {
 			this.state = "VALUE";
 		}
@@ -390,7 +390,7 @@ export class JSONParseStreamRaw {
 
 	setKey(key: number | string | undefined) {
 		this.key = key;
-		if (typeof key === "string" && this.mode === "OBJECT") {
+		if (this.onKey && typeof key === "string" && this.mode === "OBJECT") {
 			this.onKey(this.stack.length);
 		}
 	}

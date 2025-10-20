@@ -30,9 +30,6 @@ bench(
 			start(controller) {
 				parser = new JSONParseStreamRaw({
 					multi: false,
-					onKey: () => {},
-					onPop: () => {},
-					onPush: () => {},
 					onValue: (value) => {
 						// Code below is basically just copied from zengm, to mirror that real use case
 						let objectType;
