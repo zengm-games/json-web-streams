@@ -128,7 +128,7 @@ export class JSONParseStream<
 				if (
 					((info.matches === undefined && type === "push") ||
 						(info.matches !== undefined && type === "key")) &&
-					parserStack.length >= pathArray.length
+					parserStack.length === pathArray.length
 				) {
 					//console.log('check matches', type, info.path, [...parser.stack, { key: parser.key, mode: parser.mode, value: parser.value }])
 					// We have just added enough to the stack to compare with pathArray, so let's do it and save the result
@@ -162,7 +162,7 @@ export class JSONParseStream<
 						for (const info of jsonPathInfos) {
 							if (
 								info.matches !== undefined &&
-								stackLength <= info.pathArray.length
+								stackLength < info.pathArray.length
 							) {
 								info.matches = undefined;
 								//console.log('reset matches', info.path);
