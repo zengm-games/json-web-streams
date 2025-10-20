@@ -134,13 +134,26 @@ export class JSONParseStream<
 					// We have just added enough to the stack to compare with pathArray, so let's do it and save the result
 					let pathMatches = true;
 					for (let j = 0; j < pathArray.length; j++) {
-						if (!isEqual(pathArray[j]!, parser.stack[j + 1] ?? parser)) {
+						let stackComponent = parser.stack[j + 1];
+						if (!stackComponent) {
+							if (type === "key") {
+								// When setting the key, it's in the current state of the parser, not in the stack
+								stackComponent = parser;
+							} else {
+								// Can only match if the current (and final) pathArray component is a wildcard, because that means we're currently in an array/object so anything inside that will match
+								if (pathArray[j]!.type === "wildcard") {
+									pathMatches = true;
+									break;
+								}
+							}
+						}
+						if (!isEqual(pathArray[j]!, stackComponent)) {
 							pathMatches = false;
 							break;
 						}
 					}
 					info.matches = pathMatches;
-					//console.log('set matches', info.path, info.matches)
+					//console.log('set matches', type, info.path, info.matches)
 				}
 			}
 		};
