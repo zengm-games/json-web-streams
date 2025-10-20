@@ -144,11 +144,16 @@ export class JSONParseStream<
 								continue;
 							}
 
-							if (
-								pathArray.every((x, j) =>
-									isEqual(x, parserStack[j + 1] ?? parser),
-								)
-							) {
+							// This is a little faster than a more concise pathArray.every
+							let pathMatches = false;
+							for (let j = 0; j < pathArray.length; j++) {
+								if (isEqual(pathArray[j]!, parserStack[j + 1] ?? parser)) {
+									pathMatches = true;
+									break;
+								}
+							}
+
+							if (pathMatches) {
 								if (parserStack.length === pathArray.length) {
 									// Exact match of pathArray - emit record, and we don't need to keep it any more for this pathArray
 
