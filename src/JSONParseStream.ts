@@ -84,7 +84,7 @@ export class JSONParseStream<
 		let maxPathArrayLength = -Infinity;
 
 		const jsonPathInfos: {
-			matches: boolean | undefined; // undefined means unknown if it matches or not, stack length is not long enough
+			matches: "yes" | "noBeforeEnd" | "noAtEnd" | "unknown"; // undefined means unknown if it matches or not, stack length is not long enough
 			path: JSONPath;
 			pathArray: PathArray;
 			schema: StandardSchemaV1 | undefined;
@@ -112,7 +112,7 @@ export class JSONParseStream<
 			}
 
 			// Empty query starts out matching, everything else requires something in the stack
-			const matches = pathArray.length === 0 ? true : undefined;
+			const matches = pathArray.length === 0 ? "yes" : "unknown";
 
 			if (pathArray.length > maxPathArrayLength) {
 				maxPathArrayLength = pathArray.length;
@@ -136,13 +136,15 @@ export class JSONParseStream<
 				const pathArray = info.pathArray;
 				// Need to do this here rather than in onPush because the value matters too
 				if (
-					((info.matches === undefined && type === "push") ||
-						(info.matches !== undefined && type === "key")) &&
+					((info.matches === "unknown" && type === "push") ||
+						(info.matches !== "unknown" &&
+							info.matches !== "noBeforeEnd" &&
+							type === "key")) &&
 					parserStack.length === pathArray.length
 				) {
 					//console.log('check matches', type, info.path, [...parser.stack, { key: parser.key, mode: parser.mode, value: parser.value }])
 					// We have just added enough to the stack to compare with pathArray, so let's do it and save the result
-					let pathMatches = true;
+					let pathMatches: (typeof info)["matches"] = "yes";
 					for (let j = 0; j < pathArray.length; j++) {
 						let stackComponent = parser.stack[j + 1];
 						if (!stackComponent) {
@@ -152,13 +154,18 @@ export class JSONParseStream<
 							} else {
 								// Can only match if the current (and final) pathArray component is a wildcard, because that means we're currently in an array/object so anything inside that will match
 								if (pathArray[j]!.type === "wildcard") {
-									pathMatches = true;
+									pathMatches = "yes";
 									break;
 								}
 							}
 						}
 						if (!isEqual(pathArray[j]!, stackComponent)) {
-							pathMatches = false;
+							if (j < pathArray.length - 1) {
+								// Match failed before the last component of pathArray, meaning that it will take a "push" (after a pop) to make this match, and more "key" ones we receive cannot make it match
+								pathMatches = "noBeforeEnd";
+							} else {
+								pathMatches = "noAtEnd";
+							}
 							break;
 						}
 					}
@@ -193,10 +200,10 @@ export class JSONParseStream<
 							//console.log('onPop', [...parser.stack, { key: parser.key, mode: parser.mode, value: parser.value }]);
 							for (const info of jsonPathInfos) {
 								if (
-									info.matches !== undefined &&
+									info.matches !== "unknown" &&
 									stackLength < info.pathArray.length
 								) {
-									info.matches = undefined;
+									info.matches = "unknown";
 									//console.log('reset matches', info.path);
 								}
 							}
@@ -240,7 +247,7 @@ export class JSONParseStream<
 								continue;
 							}
 
-							if (matches) {
+							if (matches === "yes") {
 								if (parserStack.length === pathArray.length) {
 									// Exact match of pathArray - emit record, and we don't need to keep it any more for this pathArray
 

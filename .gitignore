@@ -1,5 +1,5 @@
 .pnpm-debug.log
-test.ts
+test*.ts
 /.vscode/
 /node_modules/
 /dist/
