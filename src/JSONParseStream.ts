@@ -159,8 +159,18 @@ export class JSONParseStream<
 						// console.log("value", value);
 						// console.log("path", path);
 						// console.log("stack", stack);
+
+						let keep = false;
 						for (const info of jsonPathInfos) {
-							const pathArray = info.pathArray;
+							const { path, pathArray, schema, wildcardIndexes } = info;
+
+							// If parserStack is shorter than pathArray, can short circuit because we need pathArray to be a subset of parserStack to do anything below, and this avoids the more expensive pathArray.every call
+							// (Despite some differences in the elements of pathArray and parserStack, they actually do have comparable lengths)
+							if (parserStack.length < pathArray.length) {
+								continue;
+							}
+
+							// Need to do this here rather than in onPush because the value matters too
 							if (
 								info.matches === undefined &&
 								parserStack.length >= pathArray.length
@@ -177,23 +187,8 @@ export class JSONParseStream<
 								info.matches = pathMatches;
 								//console.log('set matches', info.path, info.matches)
 							}
-						}
 
-						let keep = false;
-						for (const {
-							matches,
-							path,
-							pathArray,
-							schema,
-							wildcardIndexes,
-						} of jsonPathInfos) {
-							// If parserStack is shorter than pathArray, can short circuit because we need pathArray to be a subset of parserStack to do anything below, and this avoids the more expensive pathArray.every call
-							// (Despite some differences in the elements of pathArray and parserStack, they actually do have comparable lengths)
-							if (parserStack.length < pathArray.length) {
-								continue;
-							}
-
-							if (matches) {
+							if (info.matches) {
 								if (parserStack.length === pathArray.length) {
 									// Exact match of pathArray - emit record, and we don't need to keep it any more for this pathArray
 
