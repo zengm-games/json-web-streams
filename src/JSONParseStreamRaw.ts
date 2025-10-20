@@ -50,6 +50,7 @@ export type Stack = {
 	mode: Mode | undefined;
 }[];
 
+type OnKey = (key: string) => void;
 type OnPopPush = (stackLength: number) => void;
 type OnValue = (value: Value) => void;
 
@@ -64,6 +65,7 @@ export class JSONParseStreamRaw {
 	key: Key | undefined;
 	value: Value;
 	position = 0;
+	onKey: OnKey;
 	onPop: OnPopPush;
 	onPush: OnPopPush;
 	onValue: OnValue;
@@ -75,16 +77,19 @@ export class JSONParseStreamRaw {
 
 	constructor({
 		multi,
+		onKey,
 		onPop,
 		onPush,
 		onValue,
 	}: {
 		multi: boolean;
+		onKey: OnKey;
 		onPop: OnPopPush;
 		onPush: OnPopPush;
 		onValue: OnValue;
 	}) {
 		this.multi = multi;
+		this.onKey = onKey;
 		this.onPop = onPop;
 		this.onPush = onPush;
 		this.onValue = onValue;
@@ -374,13 +379,20 @@ export class JSONParseStreamRaw {
 	pop() {
 		const value = this.value;
 		const parent = this.stack.pop()!;
-		this.onPop(this.stack.length);
 		this.value = parent.value;
 		this.key = parent.key;
 		this.mode = parent.mode;
 		this.emit(value);
+		this.onPop(this.stack.length);
 		if (!this.mode) {
 			this.state = "VALUE";
+		}
+	}
+
+	setKey(key: number | string | undefined) {
+		this.key = key;
+		if (typeof key === "string" && this.mode === "OBJECT") {
+			this.onKey(key);
 		}
 	}
 
@@ -424,7 +436,7 @@ export class JSONParseStreamRaw {
 				} else {
 					this.value = {};
 				}
-				this.key = undefined;
+				this.setKey(undefined);
 				this.state = "KEY";
 				this.mode = "OBJECT";
 			} else if (token === "LEFT_BRACKET") {
@@ -434,7 +446,7 @@ export class JSONParseStreamRaw {
 				} else {
 					this.value = [];
 				}
-				this.key = 0;
+				this.setKey(0);
 				this.mode = "ARRAY";
 				this.state = "VALUE";
 			} else if (token === "RIGHT_BRACE") {
@@ -454,7 +466,7 @@ export class JSONParseStreamRaw {
 			}
 		} else if (this.state === "KEY" || this.state === "KEY_AFTER_COMMA") {
 			if (token === "STRING") {
-				this.key = value;
+				this.setKey(value);
 				this.state = "COLON";
 			} else if (token === "RIGHT_BRACE" && this.state !== "KEY_AFTER_COMMA") {
 				this.pop();

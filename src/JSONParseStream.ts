@@ -108,8 +108,11 @@ export class JSONParseStream<
 				}
 			}
 
+			// Empty query starts out matching, everything else requires something in the stack
+			const matches = pathArray.length === 0 ? true : undefined;
+
 			return {
-				matches: undefined,
+				matches,
 				path,
 				pathArray,
 				schema,
@@ -117,14 +120,45 @@ export class JSONParseStream<
 			};
 		});
 
+		const updateMatches = (type: "key" | "push") => {
+			const parserStack = parser.stack;
+			for (const info of jsonPathInfos) {
+				const pathArray = info.pathArray;
+				// Need to do this here rather than in onPush because the value matters too
+				if (
+					((info.matches === undefined && type === "push") ||
+						(info.matches !== undefined && type === "key")) &&
+					parserStack.length >= pathArray.length
+				) {
+					//console.log('check matches', type, info.path, [...parser.stack, { key: parser.key, mode: parser.mode, value: parser.value }])
+					// We have just added enough to the stack to compare with pathArray, so let's do it and save the result
+					let pathMatches = true;
+					for (let j = 0; j < pathArray.length; j++) {
+						if (!isEqual(pathArray[j]!, parser.stack[j + 1] ?? parser)) {
+							pathMatches = false;
+							break;
+						}
+					}
+					info.matches = pathMatches;
+					//console.log('set matches', info.path, info.matches)
+				}
+			}
+		};
+
 		super({
 			start(controller) {
 				parser = new JSONParseStreamRaw({
 					multi,
 
-					// onPop and onPush are kind of hacky and off-by-one from what you might think, because we need to also know the value to determine if a path matches, which is done in onValue. So in onPop and onPush we're just trying to detect situations where we might need to check that again. Ideally it'd just be with onPop resetting things, maybe with tighter integration that could be acheieved
+					// When we receive a new object key, that could make a path match if that now matches the last component of pathArray
+					onKey: (key) => {
+						//console.log('onKey', [...parser.stack, { key: parser.key, mode: parser.mode, value: parser.value }]);
+						updateMatches("key");
+					},
+
+					// Possibly we have removed enough from the stack that we can now match if something is pushed to stack
 					onPop: (stackLength) => {
-						//console.log('onPop', stackLength, parser.stack);
+						//console.log('onPop', [...parser.stack, { key: parser.key, mode: parser.mode, value: parser.value }]);
 						for (const info of jsonPathInfos) {
 							if (
 								info.matches !== undefined &&
@@ -135,17 +169,11 @@ export class JSONParseStream<
 							}
 						}
 					},
+
+					// Possibly we can now match
 					onPush: (stackLength) => {
-						//console.log('onPush', stackLength, parser.stack);
-						for (const info of jsonPathInfos) {
-							if (
-								info.matches !== undefined &&
-								stackLength === info.pathArray.length + 1
-							) {
-								info.matches = undefined;
-								//console.log('reset2 matches', info.path);
-							}
-						}
+						//console.log('onPush', [...parser.stack, { key: parser.key, mode: parser.mode, value: parser.value }]);
+						updateMatches("push");
 					},
 					onValue: (value) => {
 						//console.log('onValue', value)
@@ -161,34 +189,20 @@ export class JSONParseStream<
 						// console.log("stack", stack);
 
 						let keep = false;
-						for (const info of jsonPathInfos) {
-							const { path, pathArray, schema, wildcardIndexes } = info;
-
+						for (const {
+							matches,
+							path,
+							pathArray,
+							schema,
+							wildcardIndexes,
+						} of jsonPathInfos) {
 							// If parserStack is shorter than pathArray, can short circuit because we need pathArray to be a subset of parserStack to do anything below, and this avoids the more expensive pathArray.every call
 							// (Despite some differences in the elements of pathArray and parserStack, they actually do have comparable lengths)
 							if (parserStack.length < pathArray.length) {
 								continue;
 							}
 
-							// Need to do this here rather than in onPush because the value matters too
-							if (
-								info.matches === undefined &&
-								parserStack.length >= pathArray.length
-							) {
-								//console.log('check matches', info.path, parser.stack, { key: parser.key, mode: parser.mode, value: parser.value })
-								// We have just added enough to the stack to compare with pathArray, so let's do it and save the result
-								let pathMatches = true;
-								for (let j = 0; j < pathArray.length; j++) {
-									if (!isEqual(pathArray[j]!, parser.stack[j + 1] ?? parser)) {
-										pathMatches = false;
-										break;
-									}
-								}
-								info.matches = pathMatches;
-								//console.log('set matches', info.path, info.matches)
-							}
-
-							if (info.matches) {
+							if (matches) {
 								if (parserStack.length === pathArray.length) {
 									// Exact match of pathArray - emit record, and we don't need to keep it any more for this pathArray
 
@@ -244,7 +258,7 @@ export class JSONParseStream<
 									// Matches pathArray, but is nested deeper - still building the record to emit later
 									keep = true;
 								}
-							} else {
+							} else if (!keep) {
 								// Doesn't match pathArray, don't need to keep, but only worry about arrays/objects. Or delete this branch and it will overwrite these primitive values too.
 								const type = typeof value;
 								if (

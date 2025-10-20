@@ -30,6 +30,7 @@ bench(
 			start(controller) {
 				parser = new JSONParseStreamRaw({
 					multi: false,
+					onKey: () => {},
 					onPop: () => {},
 					onPush: () => {},
 					onValue: (value) => {
