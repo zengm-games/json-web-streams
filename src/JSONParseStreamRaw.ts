@@ -50,7 +50,6 @@ export type Stack = {
 	mode: Mode | undefined;
 }[];
 
-type OnKey = (key: string) => void;
 type OnPopPush = (stackLength: number) => void;
 type OnValue = (value: Value) => void;
 
@@ -65,7 +64,7 @@ export class JSONParseStreamRaw {
 	key: Key | undefined;
 	value: Value;
 	position = 0;
-	onKey: OnKey;
+	onKey: OnPopPush;
 	onPop: OnPopPush;
 	onPush: OnPopPush;
 	onValue: OnValue;
@@ -83,7 +82,7 @@ export class JSONParseStreamRaw {
 		onValue,
 	}: {
 		multi: boolean;
-		onKey: OnKey;
+		onKey: OnPopPush;
 		onPop: OnPopPush;
 		onPush: OnPopPush;
 		onValue: OnValue;
@@ -392,7 +391,7 @@ export class JSONParseStreamRaw {
 	setKey(key: number | string | undefined) {
 		this.key = key;
 		if (typeof key === "string" && this.mode === "OBJECT") {
-			this.onKey(key);
+			this.onKey(this.stack.length);
 		}
 	}
 

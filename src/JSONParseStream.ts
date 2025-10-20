@@ -80,6 +80,9 @@ export class JSONParseStream<
 		let parser: JSONParseStreamRaw;
 		const multi = options?.multi ?? false;
 
+		let minPathArrayLength = Infinity;
+		let maxPathArrayLength = -Infinity;
+
 		const jsonPathInfos: {
 			matches: boolean | undefined; // undefined means unknown if it matches or not, stack length is not long enough
 			path: JSONPath;
@@ -110,6 +113,13 @@ export class JSONParseStream<
 
 			// Empty query starts out matching, everything else requires something in the stack
 			const matches = pathArray.length === 0 ? true : undefined;
+
+			if (pathArray.length > maxPathArrayLength) {
+				maxPathArrayLength = pathArray.length;
+			}
+			if (pathArray.length < minPathArrayLength) {
+				minPathArrayLength = pathArray.length;
+			}
 
 			return {
 				matches,
@@ -164,29 +174,44 @@ export class JSONParseStream<
 					multi,
 
 					// When we receive a new object key, that could make a path match if that now matches the last component of pathArray
-					onKey: (key) => {
-						//console.log('onKey', [...parser.stack, { key: parser.key, mode: parser.mode, value: parser.value }]);
-						updateMatches("key");
+					onKey: (stackLength) => {
+						if (
+							stackLength <= maxPathArrayLength &&
+							stackLength >= minPathArrayLength
+						) {
+							//console.log('onKey', [...parser.stack, { key: parser.key, mode: parser.mode, value: parser.value }]);
+							updateMatches("key");
+						}
 					},
 
 					// Possibly we have removed enough from the stack that we can now match if something is pushed to stack
 					onPop: (stackLength) => {
-						//console.log('onPop', [...parser.stack, { key: parser.key, mode: parser.mode, value: parser.value }]);
-						for (const info of jsonPathInfos) {
-							if (
-								info.matches !== undefined &&
-								stackLength < info.pathArray.length
-							) {
-								info.matches = undefined;
-								//console.log('reset matches', info.path);
+						if (
+							stackLength < maxPathArrayLength &&
+							stackLength >= minPathArrayLength - 1
+						) {
+							//console.log('onPop', [...parser.stack, { key: parser.key, mode: parser.mode, value: parser.value }]);
+							for (const info of jsonPathInfos) {
+								if (
+									info.matches !== undefined &&
+									stackLength < info.pathArray.length
+								) {
+									info.matches = undefined;
+									//console.log('reset matches', info.path);
+								}
 							}
 						}
 					},
 
 					// Possibly we can now match
 					onPush: (stackLength) => {
-						//console.log('onPush', [...parser.stack, { key: parser.key, mode: parser.mode, value: parser.value }]);
-						updateMatches("push");
+						if (
+							stackLength <= maxPathArrayLength &&
+							stackLength >= minPathArrayLength
+						) {
+							//console.log('onPush', [...parser.stack, { key: parser.key, mode: parser.mode, value: parser.value }]);
+							updateMatches("push");
+						}
 					},
 					onValue: (value) => {
 						//console.log('onValue', value)
