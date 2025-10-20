@@ -50,6 +50,7 @@ export type Stack = {
 	mode: Mode | undefined;
 }[];
 
+type OnPopPush = (stackLength: number) => void;
 type OnValue = (value: Value) => void;
 
 const WHITESPACE = new Set([" ", "\t", "\n", "\r"]);
@@ -63,6 +64,8 @@ export class JSONParseStreamRaw {
 	key: Key | undefined;
 	value: Value;
 	position = 0;
+	onPop: OnPopPush;
+	onPush: OnPopPush;
 	onValue: OnValue;
 	unicode: string | undefined;
 	highSurrogate: number | undefined;
@@ -70,9 +73,21 @@ export class JSONParseStreamRaw {
 	multi: boolean;
 	multiIndex = 0;
 
-	constructor({ multi, onValue }: { multi: boolean; onValue: OnValue }) {
-		this.onValue = onValue;
+	constructor({
+		multi,
+		onPop,
+		onPush,
+		onValue,
+	}: {
+		multi: boolean;
+		onPop: OnPopPush;
+		onPush: OnPopPush;
+		onValue: OnValue;
+	}) {
 		this.multi = multi;
+		this.onPop = onPop;
+		this.onPush = onPush;
+		this.onValue = onValue;
 	}
 
 	charError(char: string, i: number) {
@@ -353,11 +368,13 @@ export class JSONParseStreamRaw {
 
 	push() {
 		this.stack.push({ value: this.value, key: this.key, mode: this.mode });
+		this.onPush(this.stack.length);
 	}
 
 	pop() {
 		const value = this.value;
 		const parent = this.stack.pop()!;
+		this.onPop(this.stack.length);
 		this.value = parent.value;
 		this.key = parent.key;
 		this.mode = parent.mode;

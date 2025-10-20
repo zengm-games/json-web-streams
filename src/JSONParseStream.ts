@@ -81,6 +81,7 @@ export class JSONParseStream<
 		const multi = options?.multi ?? false;
 
 		const jsonPathInfos: {
+			matches: boolean | undefined; // undefined means unknown if it matches or not, stack length is not long enough
 			path: JSONPath;
 			pathArray: PathArray;
 			schema: StandardSchemaV1 | undefined;
@@ -108,6 +109,7 @@ export class JSONParseStream<
 			}
 
 			return {
+				matches: undefined,
 				path,
 				pathArray,
 				schema,
@@ -119,7 +121,34 @@ export class JSONParseStream<
 			start(controller) {
 				parser = new JSONParseStreamRaw({
 					multi,
+
+					// onPop and onPush are kind of hacky and off-by-one from what you might think, because we need to also know the value to determine if a path matches, which is done in onValue. So in onPop and onPush we're just trying to detect situations where we might need to check that again. Ideally it'd just be with onPop resetting things, maybe with tighter integration that could be acheieved
+					onPop: (stackLength) => {
+						//console.log('onPop', stackLength, parser.stack);
+						for (const info of jsonPathInfos) {
+							if (
+								info.matches !== undefined &&
+								stackLength <= info.pathArray.length
+							) {
+								info.matches = undefined;
+								//console.log('reset matches', info.path);
+							}
+						}
+					},
+					onPush: (stackLength) => {
+						//console.log('onPush', stackLength, parser.stack);
+						for (const info of jsonPathInfos) {
+							if (
+								info.matches !== undefined &&
+								stackLength === info.pathArray.length + 1
+							) {
+								info.matches = undefined;
+								//console.log('reset2 matches', info.path);
+							}
+						}
+					},
 					onValue: (value) => {
+						//console.log('onValue', value)
 						const {
 							key: parserKey,
 							//mode: parserMode,
@@ -130,9 +159,29 @@ export class JSONParseStream<
 						// console.log("value", value);
 						// console.log("path", path);
 						// console.log("stack", stack);
+						for (const info of jsonPathInfos) {
+							const pathArray = info.pathArray;
+							if (
+								info.matches === undefined &&
+								parserStack.length >= pathArray.length
+							) {
+								//console.log('check matches', info.path, parser.stack, { key: parser.key, mode: parser.mode, value: parser.value })
+								// We have just added enough to the stack to compare with pathArray, so let's do it and save the result
+								let pathMatches = true;
+								for (let j = 0; j < pathArray.length; j++) {
+									if (!isEqual(pathArray[j]!, parser.stack[j + 1] ?? parser)) {
+										pathMatches = false;
+										break;
+									}
+								}
+								info.matches = pathMatches;
+								//console.log('set matches', info.path, info.matches)
+							}
+						}
 
 						let keep = false;
 						for (const {
+							matches,
 							path,
 							pathArray,
 							schema,
@@ -144,16 +193,7 @@ export class JSONParseStream<
 								continue;
 							}
 
-							// This is a little faster than a more concise pathArray.every
-							let pathMatches = false;
-							for (let j = 0; j < pathArray.length; j++) {
-								if (isEqual(pathArray[j]!, parserStack[j + 1] ?? parser)) {
-									pathMatches = true;
-									break;
-								}
-							}
-
-							if (pathMatches) {
+							if (matches) {
 								if (parserStack.length === pathArray.length) {
 									// Exact match of pathArray - emit record, and we don't need to keep it any more for this pathArray
 

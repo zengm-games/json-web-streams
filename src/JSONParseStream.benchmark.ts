@@ -10,7 +10,7 @@ import type { JSONPath } from "./jsonPathToPathArray.ts";
 const filename = path.join(__dirname, "test/benchmark.json");
 
 const benchOptions = {
-	iterations: 10,
+	iterations: 100,
 } as const;
 
 const CUMULATIVE_OBJECTS = new Set([
@@ -30,6 +30,8 @@ bench(
 			start(controller) {
 				parser = new JSONParseStreamRaw({
 					multi: false,
+					onPop: () => {},
+					onPush: () => {},
 					onValue: (value) => {
 						// Code below is basically just copied from zengm, to mirror that real use case
 						let objectType;
