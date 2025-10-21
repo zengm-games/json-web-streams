@@ -133,7 +133,7 @@ describe("key property", () => {
 		assertType<
 			(
 				| {
-						key: string;
+						key: "foo";
 						value: unknown;
 				  }
 				| {
@@ -156,11 +156,11 @@ describe("key property", () => {
 		assertType<
 			(
 				| {
-						key: string;
+						key: "foo";
 						value: unknown;
 				  }
 				| {
-						key: number;
+						key: 4;
 						value: unknown;
 				  }
 			)[]

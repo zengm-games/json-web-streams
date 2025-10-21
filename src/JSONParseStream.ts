@@ -50,8 +50,6 @@ const isEqual = (x: PathArray[number], y: Stack[number] | undefined) => {
 	return false;
 };
 
-type Key = unknown;
-
 type JSONParseStreamOutput<T> = T extends {
 	key?: infer K | undefined;
 	path: infer P extends JSONPath;
@@ -68,6 +66,7 @@ type JSONParseStreamOutput<T> = T extends {
 		: never;
 
 export class JSONParseStream<
+	const Key extends unknown,
 	T extends readonly (
 		| JSONPath
 		| { key?: Key; path: JSONPath; schema?: StandardSchemaV1 }
