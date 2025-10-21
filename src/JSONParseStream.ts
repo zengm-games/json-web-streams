@@ -236,7 +236,6 @@ export class JSONParseStream<
 						//console.log('onValue', value)
 						const {
 							key: parserKey,
-							//mode: parserMode,
 							stack: parserStack,
 							value: parserValue,
 						} = parser;
