@@ -244,6 +244,22 @@ describe("Streaming", () => {
 			);
 		}
 	});
+
+	test("key property propagated from input to output", async () => {
+		const stream = makeReadableStreamFromJson(json).pipeThrough(
+			new JSONParseStream([
+				{
+					path,
+					key: "foo",
+				},
+			]),
+		);
+		const chunks = await Array.fromAsync(stream);
+		assert.deepStrictEqual(chunks, [
+			{ key: "foo", path, value: 1 },
+			{ key: "foo", path, value: 2 },
+		]);
+	});
 });
 
 describe("Multi option", () => {

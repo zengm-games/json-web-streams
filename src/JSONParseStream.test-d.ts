@@ -1,4 +1,4 @@
-import { assertType, test } from "vitest";
+import { assertType, describe, test } from "vitest";
 import * as z from "zod";
 import { JSONParseStream } from "./JSONParseStream.ts";
 import { makeReadableStreamFromJson } from "./test/utils.ts";
@@ -34,7 +34,7 @@ test("Object input with validator -> types of values are known", async () => {
 	}
 });
 
-test("Object input without validator -> types of values are unknown", async () => {
+test("Object input with validator mixed with string input -> some types of values are unknown", async () => {
 	const json = "[]";
 	const stream = makeReadableStreamFromJson(json).pipeThrough(
 		new JSONParseStream([{ path: "$.foo", schema: z.string() }, "$.bar"]),
@@ -58,6 +58,37 @@ test("Object input without validator -> types of values are unknown", async () =
 			assertType<string>(chunk.value);
 		} else {
 			assertType<unknown>(chunk.value);
+		}
+	}
+});
+
+test("Object input without validator -> types of values are unknown", async () => {
+	const json = "[]";
+	const stream = makeReadableStreamFromJson(json).pipeThrough(
+		new JSONParseStream([
+			{ path: "$.foo", schema: z.string() },
+			{ path: "$.bar" },
+		]),
+	);
+	const chunks = await Array.fromAsync(stream);
+	assertType<
+		(
+			| {
+					path: "$.foo";
+					value: string;
+			  }
+			| {
+					path: "$.bar";
+					value: unknown;
+			  }
+		)[]
+	>(chunks);
+
+	for (const chunk of chunks) {
+		if (chunk.path === "$.bar") {
+			assertType<unknown>(chunk.value);
+		} else {
+			assertType<string>(chunk.value);
 		}
 	}
 });
@@ -90,4 +121,52 @@ test("makeReadableStreamFromJson parameter is being checked as JSONPath", async 
 		// @ts-expect-error
 		new JSONParseStream({ x: null });
 	} catch {}
+});
+
+describe("key property", () => {
+	test("propagated from input to output", async () => {
+		const json = "[]";
+		const stream = makeReadableStreamFromJson(json).pipeThrough(
+			new JSONParseStream([{ key: "foo", path: "$.foo" }, { path: "$.bar" }]),
+		);
+		const chunks = await Array.fromAsync(stream);
+		assertType<
+			(
+				| {
+						key: string;
+						path: "$.foo";
+						value: unknown;
+				  }
+				| {
+						path: "$.bar";
+						value: unknown;
+				  }
+			)[]
+		>(chunks);
+	});
+
+	test("two different types", async () => {
+		const json = "[]";
+		const stream = makeReadableStreamFromJson(json).pipeThrough(
+			new JSONParseStream([
+				{ key: "foo", path: "$.foo" },
+				{ key: 4, path: "$.bar" },
+			]),
+		);
+		const chunks = await Array.fromAsync(stream);
+		assertType<
+			(
+				| {
+						key: string;
+						path: "$.foo";
+						value: unknown;
+				  }
+				| {
+						key: number;
+						path: "$.bar";
+						value: unknown;
+				  }
+			)[]
+		>(chunks);
+	});
 });

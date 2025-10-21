@@ -50,15 +50,20 @@ const isEqual = (x: PathArray[number], y: Stack[number] | undefined) => {
 	return false;
 };
 
+type Key = unknown;
+
 type JSONParseStreamOutput<T> = T extends {
+	key?: infer K | undefined;
 	path: infer P extends JSONPath;
-	schema: infer S extends StandardSchemaV1;
+	schema?: infer S extends StandardSchemaV1 | undefined;
 }
 	? {
 			path: P;
-			value: StandardSchemaV1.InferOutput<S>;
+			value: S extends StandardSchemaV1
+				? StandardSchemaV1.InferOutput<S>
+				: unknown;
 			wildcardKeys?: string[];
-		}
+		} & (undefined extends K ? {} : { key: K })
 	: T extends JSONPath
 		? { path: T; value: unknown; wildcardKeys?: string[] }
 		: never;
@@ -66,7 +71,7 @@ type JSONParseStreamOutput<T> = T extends {
 export class JSONParseStream<
 	T extends readonly (
 		| JSONPath
-		| { path: JSONPath; schema: StandardSchemaV1 }
+		| { key?: Key; path: JSONPath; schema?: StandardSchemaV1 }
 	)[],
 > extends TransformStream<string, JSONParseStreamOutput<T[number]>> {
 	_parser: JSONParseStreamRaw;
@@ -83,6 +88,7 @@ export class JSONParseStream<
 		let maxPathArrayLength = -Infinity;
 
 		type JSONPathInfo = {
+			key: Key | undefined;
 			matches: "yes" | "noBeforeEnd" | "noAtEnd" | "unknown"; // undefined means unknown if it matches or not, stack length is not long enough
 			path: JSONPath;
 			pathArray: PathArray;
@@ -91,11 +97,13 @@ export class JSONParseStream<
 		};
 
 		const jsonPathInfos: JSONPathInfo[] = jsonPaths.map((row) => {
+			let key;
 			let path;
 			let schema;
 			if (typeof row === "string") {
 				path = row;
 			} else {
+				key = row.key;
 				path = row.path;
 				schema = row.schema;
 			}
@@ -123,6 +131,7 @@ export class JSONParseStream<
 			}
 
 			return {
+				key,
 				matches,
 				path,
 				pathArray,
@@ -237,6 +246,7 @@ export class JSONParseStream<
 
 						let keep = false;
 						for (const {
+							key,
 							path,
 							pathArray,
 							validate,
@@ -282,16 +292,33 @@ export class JSONParseStream<
 
 								// Casting to any is needed because jsonPathInfos is broader than it should be - it should be constrained so path is one of the input paths, and valueToEmit is the correct type if a schema is present
 								if (wildcardKeys) {
-									controller.enqueue({
-										path: path,
-										value: valueToEmit,
-										wildcardKeys,
-									} as any);
+									if (key === undefined) {
+										controller.enqueue({
+											path,
+											value: valueToEmit,
+											wildcardKeys,
+										} as any);
+									} else {
+										controller.enqueue({
+											key,
+											path,
+											value: valueToEmit,
+											wildcardKeys,
+										} as any);
+									}
 								} else {
-									controller.enqueue({
-										path: path,
-										value: valueToEmit,
-									} as any);
+									if (key === undefined) {
+										controller.enqueue({
+											path,
+											value: valueToEmit,
+										} as any);
+									} else {
+										controller.enqueue({
+											key,
+											path,
+											value: valueToEmit,
+										} as any);
+									}
 								}
 							} else {
 								// Matches pathArray, but is nested deeper - still building the record to emit later
