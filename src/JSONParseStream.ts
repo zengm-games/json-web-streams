@@ -78,7 +78,6 @@ export class JSONParseStream<
 		},
 	) {
 		let parser: JSONParseStreamRaw;
-		const multi = options?.multi ?? false;
 
 		let minPathArrayLength = Infinity;
 		let maxPathArrayLength = -Infinity;
@@ -87,7 +86,7 @@ export class JSONParseStream<
 			matches: "yes" | "noBeforeEnd" | "noAtEnd" | "unknown"; // undefined means unknown if it matches or not, stack length is not long enough
 			path: JSONPath;
 			pathArray: PathArray;
-			schema: StandardSchemaV1 | undefined;
+			validate: StandardSchemaV1["~standard"]["validate"] | undefined;
 			wildcardIndexes: number[] | undefined;
 		};
 
@@ -127,7 +126,7 @@ export class JSONParseStream<
 				matches,
 				path,
 				pathArray,
-				schema,
+				validate: schema?.["~standard"].validate,
 				wildcardIndexes,
 			};
 		});
@@ -137,7 +136,6 @@ export class JSONParseStream<
 		);
 
 		const updateMatches = (type: "key" | "push") => {
-			const parserStack = parser.stack;
 			for (const info of jsonPathInfos) {
 				const pathArray = info.pathArray;
 				// Need to do this here rather than in onPush because the value matters too
@@ -146,7 +144,7 @@ export class JSONParseStream<
 						(info.matches !== "unknown" &&
 							info.matches !== "noBeforeEnd" &&
 							type === "key")) &&
-					parserStack.length === pathArray.length
+					parser.stack.length === pathArray.length
 				) {
 					//console.log('check matches', type, info.path, [...parser.stack, { key: parser.key, mode: parser.mode, value: parser.value }])
 					// We have just added enough to the stack to compare with pathArray, so let's do it and save the result
@@ -189,7 +187,7 @@ export class JSONParseStream<
 		super({
 			start(controller) {
 				parser = new JSONParseStreamRaw({
-					multi,
+					multi: options?.multi,
 
 					// When we receive a new object key, that could make a path match if that now matches the last component of pathArray
 					onKey: (stackLength) => {
@@ -234,13 +232,6 @@ export class JSONParseStream<
 					},
 					onValue: (value) => {
 						//console.log('onValue', value)
-						const {
-							key: parserKey,
-							stack: parserStack,
-							value: parserValue,
-						} = parser;
-
-						// console.log("value", value);
 						// console.log("path", path);
 						// console.log("stack", stack);
 
@@ -248,15 +239,15 @@ export class JSONParseStream<
 						for (const {
 							path,
 							pathArray,
-							schema,
+							validate,
 							wildcardIndexes,
 						} of jsonPathInfosThatMatch) {
-							if (parserStack.length === pathArray.length) {
+							if (parser.stack.length === pathArray.length) {
 								// Exact match of pathArray - emit record, and we don't need to keep it any more for this pathArray
 
 								let valueToEmit;
-								if (schema) {
-									const result = schema["~standard"].validate(value);
+								if (validate) {
+									const result = validate(value);
 									if (result instanceof Promise) {
 										throw new TypeError(
 											"Schema validation must be synchronous",
@@ -276,7 +267,7 @@ export class JSONParseStream<
 								let wildcardKeys: string[] | undefined;
 								if (wildcardIndexes) {
 									for (const index of wildcardIndexes) {
-										const stackComponent = parserStack[index + 1] ?? parser;
+										const stackComponent = parser.stack[index + 1] ?? parser;
 										if (
 											stackComponent.mode === "OBJECT" &&
 											stackComponent.key !== undefined
@@ -309,30 +300,32 @@ export class JSONParseStream<
 						}
 						// console.log("Keep?", keep, "\n");
 
-						if (!keep) {
-							// Doesn't match pathArray, don't need to keep, but only worry about arrays/objects. Or delete this branch and it will overwrite these primitive values too.
-							const type = typeof value;
-							if (
-								!(
-									type === "string" ||
-									type === "number" ||
-									type === "boolean" ||
-									value === null
-								)
-							) {
-								// Now that we have emitted the object we want, we no longer need to keep track of all the values on the stack. This avoids keeping the whole JSON object in memory.
-								for (const row of parserStack) {
-									row.value = undefined;
-								}
+						if (keep) {
+							return;
+						}
 
-								// Also, when processing an array/object, this.value will contain the current state of the array/object. So we should delete the value there too, but leave the array/object so it can still be used by the parser
-								if (
-									typeof parserValue === "object" &&
-									parserValue !== null &&
-									parserKey !== undefined
-								) {
-									parserValue[parserKey] = undefined;
-								}
+						// Doesn't match pathArray, don't need to keep, but only worry about arrays/objects. Or delete this branch and it will overwrite these primitive values too.
+						const type = typeof value;
+						if (
+							!(
+								type === "string" ||
+								type === "number" ||
+								type === "boolean" ||
+								value === null
+							)
+						) {
+							// Now that we have emitted the object we want, we no longer need to keep track of all the values on the stack. This avoids keeping the whole JSON object in memory.
+							for (const row of parser.stack) {
+								row.value = undefined;
+							}
+
+							// Also, when processing an array/object, this.value will contain the current state of the array/object. So we should delete the value there too, but leave the array/object so it can still be used by the parser
+							if (
+								typeof parser.value === "object" &&
+								parser.value !== null &&
+								parser.key !== undefined
+							) {
+								parser.value[parser.key] = undefined;
 							}
 						}
 					},
