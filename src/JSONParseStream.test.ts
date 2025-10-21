@@ -68,8 +68,8 @@ describe("Streaming", () => {
 		);
 		const chunks = await Array.fromAsync(stream);
 		assert.deepStrictEqual(chunks, [
-			{ value: 1, path },
-			{ value: 2, path },
+			{ value: 1, key: path },
+			{ value: 2, key: path },
 		]);
 	});
 
@@ -81,10 +81,10 @@ describe("Streaming", () => {
 		);
 		const chunks = await Array.fromAsync(stream);
 		assert.deepStrictEqual(chunks, [
-			{ value: 1, path: jsonPaths[0] },
-			{ value: 2, path: jsonPaths[0] },
-			{ value: { x: 3 }, path: jsonPaths[1] },
-			{ value: { x: 4 }, path: jsonPaths[1] },
+			{ value: 1, key: jsonPaths[0] },
+			{ value: 2, key: jsonPaths[0] },
+			{ value: { x: 3 }, key: jsonPaths[1] },
+			{ value: { x: 4 }, key: jsonPaths[1] },
 		]);
 	});
 
@@ -96,10 +96,10 @@ describe("Streaming", () => {
 		);
 		const chunks = await Array.fromAsync(stream);
 		assert.deepStrictEqual(chunks, [
-			{ value: 3, path: jsonPaths[1] },
-			{ value: { x: 3 }, path: jsonPaths[0] },
-			{ value: 4, path: jsonPaths[1] },
-			{ value: { x: 4 }, path: jsonPaths[0] },
+			{ value: 3, key: jsonPaths[1] },
+			{ value: { x: 3 }, key: jsonPaths[0] },
+			{ value: 4, key: jsonPaths[1] },
+			{ value: { x: 4 }, key: jsonPaths[0] },
 		]);
 	});
 
@@ -122,7 +122,7 @@ describe("Streaming", () => {
 
 		const chunks = await Array.fromAsync(stream);
 		const foo = chunks
-			.filter((chunk) => chunk.path === jsonPaths[0])
+			.filter((chunk) => chunk.key === jsonPaths[0])
 			.map((chunk) => chunk.value);
 		assert.deepStrictEqual(foo, [[{ key: 1 }]]);
 	});
@@ -182,12 +182,12 @@ describe("Streaming", () => {
 			const values = await Array.fromAsync(stream);
 			assert.deepStrictEqual(values, [
 				{
-					path,
+					key: path,
 					value: "f",
 					wildcardKeys: ["foo"],
 				},
 				{
-					path,
+					key: path,
 					value: "b",
 					wildcardKeys: ["bar"],
 				},
@@ -220,22 +220,22 @@ describe("Streaming", () => {
 				values,
 				[
 					{
-						path,
+						key: path,
 						value: 1,
 						wildcardKeys: ["foo"],
 					},
 					{
-						path,
+						key: path,
 						value: 2,
 						wildcardKeys: ["foo"],
 					},
 					{
-						path,
+						key: path,
 						value: 3,
 						wildcardKeys: ["bar"],
 					},
 					{
-						path,
+						key: path,
 						value: 4,
 						wildcardKeys: ["bar"],
 					},
@@ -256,8 +256,8 @@ describe("Streaming", () => {
 		);
 		const chunks = await Array.fromAsync(stream);
 		assert.deepStrictEqual(chunks, [
-			{ key: "foo", path, value: 1 },
-			{ key: "foo", path, value: 2 },
+			{ key: "foo", value: 1 },
+			{ key: "foo", value: 2 },
 		]);
 	});
 });
@@ -278,9 +278,9 @@ describe("Multi option", () => {
 			);
 			const chunks = await Array.fromAsync(stream);
 			assert.deepStrictEqual(chunks, [
-				{ value: 1, path },
-				{ value: 2, path },
-				{ value: 3, path },
+				{ value: 1, key: path },
+				{ value: 2, key: path },
+				{ value: 3, key: path },
 			]);
 		});
 
@@ -298,9 +298,9 @@ describe("Multi option", () => {
 			);
 			const chunks = await Array.fromAsync(stream);
 			assert.deepStrictEqual(chunks, [
-				{ value: 1, path },
-				{ value: 2, path },
-				{ value: 3, path },
+				{ value: 1, key: path },
+				{ value: 2, key: path },
+				{ value: 3, key: path },
 			]);
 		});
 	}
@@ -315,9 +315,9 @@ describe("Multi option", () => {
 		);
 		const chunks = await Array.fromAsync(stream);
 		assert.deepStrictEqual(chunks, [
-			{ value: [1], path },
-			{ value: [2], path },
-			{ value: [3], path },
+			{ value: [1], key: path },
+			{ value: [2], key: path },
+			{ value: [3], key: path },
 		]);
 	});
 });

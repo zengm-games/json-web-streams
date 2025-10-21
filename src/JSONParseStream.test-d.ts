@@ -15,18 +15,18 @@ test("Object input with validator -> types of values are known", async () => {
 	assertType<
 		(
 			| {
-					path: "$.foo";
+					key: "$.foo";
 					value: string;
 			  }
 			| {
-					path: "$.bar";
+					key: "$.bar";
 					value: number;
 			  }
 		)[]
 	>(chunks);
 
 	for (const chunk of chunks) {
-		if (chunk.path === "$.foo") {
+		if (chunk.key === "$.foo") {
 			assertType<string>(chunk.value);
 		} else {
 			assertType<number>(chunk.value);
@@ -43,18 +43,18 @@ test("Object input with validator mixed with string input -> some types of value
 	assertType<
 		(
 			| {
-					path: "$.foo";
+					key: "$.foo";
 					value: string;
 			  }
 			| {
-					path: "$.bar";
+					key: "$.bar";
 					value: unknown;
 			  }
 		)[]
 	>(chunks);
 
 	for (const chunk of chunks) {
-		if (chunk.path === "$.foo") {
+		if (chunk.key === "$.foo") {
 			assertType<string>(chunk.value);
 		} else {
 			assertType<unknown>(chunk.value);
@@ -74,18 +74,18 @@ test("Object input without validator -> types of values are unknown", async () =
 	assertType<
 		(
 			| {
-					path: "$.foo";
+					key: "$.foo";
 					value: string;
 			  }
 			| {
-					path: "$.bar";
+					key: "$.bar";
 					value: unknown;
 			  }
 		)[]
 	>(chunks);
 
 	for (const chunk of chunks) {
-		if (chunk.path === "$.bar") {
+		if (chunk.key === "$.bar") {
 			assertType<unknown>(chunk.value);
 		} else {
 			assertType<string>(chunk.value);
@@ -102,11 +102,11 @@ test("Array input -> types of values are unknown", async () => {
 	assertType<
 		(
 			| {
-					path: "$.foo";
+					key: "$.foo";
 					value: unknown;
 			  }
 			| {
-					path: "$.bar";
+					key: "$.bar";
 					value: unknown;
 			  }
 		)[]
@@ -134,11 +134,10 @@ describe("key property", () => {
 			(
 				| {
 						key: string;
-						path: "$.foo";
 						value: unknown;
 				  }
 				| {
-						path: "$.bar";
+						key: "$.bar";
 						value: unknown;
 				  }
 			)[]
@@ -158,12 +157,10 @@ describe("key property", () => {
 			(
 				| {
 						key: string;
-						path: "$.foo";
 						value: unknown;
 				  }
 				| {
 						key: number;
-						path: "$.bar";
 						value: unknown;
 				  }
 			)[]

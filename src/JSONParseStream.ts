@@ -58,14 +58,13 @@ type JSONParseStreamOutput<T> = T extends {
 	schema?: infer S extends StandardSchemaV1 | undefined;
 }
 	? {
-			path: P;
 			value: S extends StandardSchemaV1
 				? StandardSchemaV1.InferOutput<S>
 				: unknown;
 			wildcardKeys?: string[];
-		} & (undefined extends K ? {} : { key: K })
+		} & (undefined extends K ? { key: P } : { key: K })
 	: T extends JSONPath
-		? { path: T; value: unknown; wildcardKeys?: string[] }
+		? { key: T; value: unknown; wildcardKeys?: string[] }
 		: never;
 
 export class JSONParseStream<
@@ -292,33 +291,16 @@ export class JSONParseStream<
 
 								// Casting to any is needed because jsonPathInfos is broader than it should be - it should be constrained so path is one of the input paths, and valueToEmit is the correct type if a schema is present
 								if (wildcardKeys) {
-									if (key === undefined) {
-										controller.enqueue({
-											path,
-											value: valueToEmit,
-											wildcardKeys,
-										} as any);
-									} else {
-										controller.enqueue({
-											key,
-											path,
-											value: valueToEmit,
-											wildcardKeys,
-										} as any);
-									}
+									controller.enqueue({
+										key: key ?? path,
+										value: valueToEmit,
+										wildcardKeys,
+									} as any);
 								} else {
-									if (key === undefined) {
-										controller.enqueue({
-											path,
-											value: valueToEmit,
-										} as any);
-									} else {
-										controller.enqueue({
-											key,
-											path,
-											value: valueToEmit,
-										} as any);
-									}
+									controller.enqueue({
+										key: key ?? path,
+										value: valueToEmit,
+									} as any);
 								}
 							} else {
 								// Matches pathArray, but is nested deeper - still building the record to emit later
