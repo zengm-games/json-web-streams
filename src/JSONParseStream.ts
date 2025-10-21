@@ -83,13 +83,15 @@ export class JSONParseStream<
 		let minPathArrayLength = Infinity;
 		let maxPathArrayLength = -Infinity;
 
-		const jsonPathInfos: {
+		type JSONPathInfo = {
 			matches: "yes" | "noBeforeEnd" | "noAtEnd" | "unknown"; // undefined means unknown if it matches or not, stack length is not long enough
 			path: JSONPath;
 			pathArray: PathArray;
 			schema: StandardSchemaV1 | undefined;
 			wildcardIndexes: number[] | undefined;
-		}[] = jsonPaths.map((row) => {
+		};
+
+		const jsonPathInfos: JSONPathInfo[] = jsonPaths.map((row) => {
 			let path;
 			let schema;
 			if (typeof row === "string") {
@@ -129,6 +131,10 @@ export class JSONParseStream<
 				wildcardIndexes,
 			};
 		});
+
+		const jsonPathInfosThatMatch = new Set<JSONPathInfo>(
+			jsonPathInfos.filter((info) => info.matches === "yes"),
+		);
 
 		const updateMatches = (type: "key" | "push") => {
 			const parserStack = parser.stack;
@@ -170,6 +176,11 @@ export class JSONParseStream<
 						}
 					}
 					info.matches = pathMatches;
+					if (pathMatches === "yes") {
+						jsonPathInfosThatMatch.add(info);
+					} else {
+						jsonPathInfosThatMatch.delete(info);
+					}
 					//console.log('set matches', type, info.path, info.matches)
 				}
 			}
@@ -204,6 +215,7 @@ export class JSONParseStream<
 									stackLength < info.pathArray.length
 								) {
 									info.matches = "unknown";
+									jsonPathInfosThatMatch.delete(info);
 									//console.log('reset matches', info.path);
 								}
 							}
@@ -235,102 +247,93 @@ export class JSONParseStream<
 
 						let keep = false;
 						for (const {
-							matches,
 							path,
 							pathArray,
 							schema,
 							wildcardIndexes,
-						} of jsonPathInfos) {
-							// If parserStack is shorter than pathArray, can short circuit because we need pathArray to be a subset of parserStack to do anything below, and this avoids the more expensive pathArray.every call
-							// (Despite some differences in the elements of pathArray and parserStack, they actually do have comparable lengths)
-							if (parserStack.length < pathArray.length) {
-								continue;
-							}
+						} of jsonPathInfosThatMatch) {
+							if (parserStack.length === pathArray.length) {
+								// Exact match of pathArray - emit record, and we don't need to keep it any more for this pathArray
 
-							if (matches === "yes") {
-								if (parserStack.length === pathArray.length) {
-									// Exact match of pathArray - emit record, and we don't need to keep it any more for this pathArray
-
-									let valueToEmit;
-									if (schema) {
-										const result = schema["~standard"].validate(value);
-										if (result instanceof Promise) {
-											throw new TypeError(
-												"Schema validation must be synchronous",
-											);
-										}
-
-										// if the `issues` field exists, the validation failed
-										if (result.issues) {
-											throw new Error(JSON.stringify(result.issues, null, 2));
-										}
-
-										valueToEmit = result.value;
-									} else {
-										valueToEmit = value;
+								let valueToEmit;
+								if (schema) {
+									const result = schema["~standard"].validate(value);
+									if (result instanceof Promise) {
+										throw new TypeError(
+											"Schema validation must be synchronous",
+										);
 									}
 
-									let wildcardKeys: string[] | undefined;
-									if (wildcardIndexes) {
-										for (const index of wildcardIndexes) {
-											const stackComponent = parserStack[index + 1] ?? parser;
-											if (
-												stackComponent.mode === "OBJECT" &&
-												stackComponent.key !== undefined
-											) {
-												if (!wildcardKeys) {
-													wildcardKeys = [];
-												}
-												wildcardKeys.push(stackComponent.key as string);
-											}
-										}
+									// if the `issues` field exists, the validation failed
+									if (result.issues) {
+										throw new Error(JSON.stringify(result.issues, null, 2));
 									}
 
-									// Casting to any is needed because jsonPathInfos is broader than it should be - it should be constrained so path is one of the input paths, and valueToEmit is the correct type if a schema is present
-									if (wildcardKeys) {
-										controller.enqueue({
-											path: path,
-											value: valueToEmit,
-											wildcardKeys,
-										} as any);
-									} else {
-										controller.enqueue({
-											path: path,
-											value: valueToEmit,
-										} as any);
-									}
+									valueToEmit = result.value;
 								} else {
-									// Matches pathArray, but is nested deeper - still building the record to emit later
-									keep = true;
+									valueToEmit = value;
 								}
-							} else if (!keep) {
-								// Doesn't match pathArray, don't need to keep, but only worry about arrays/objects. Or delete this branch and it will overwrite these primitive values too.
-								const type = typeof value;
-								if (
-									type === "string" ||
-									type === "number" ||
-									type === "boolean" ||
-									value === null
-								) {
-									keep = true;
+
+								let wildcardKeys: string[] | undefined;
+								if (wildcardIndexes) {
+									for (const index of wildcardIndexes) {
+										const stackComponent = parserStack[index + 1] ?? parser;
+										if (
+											stackComponent.mode === "OBJECT" &&
+											stackComponent.key !== undefined
+										) {
+											if (!wildcardKeys) {
+												wildcardKeys = [];
+											}
+											wildcardKeys.push(stackComponent.key as string);
+										}
+									}
 								}
+
+								// Casting to any is needed because jsonPathInfos is broader than it should be - it should be constrained so path is one of the input paths, and valueToEmit is the correct type if a schema is present
+								if (wildcardKeys) {
+									controller.enqueue({
+										path: path,
+										value: valueToEmit,
+										wildcardKeys,
+									} as any);
+								} else {
+									controller.enqueue({
+										path: path,
+										value: valueToEmit,
+									} as any);
+								}
+							} else {
+								// Matches pathArray, but is nested deeper - still building the record to emit later
+								keep = true;
 							}
 						}
 						// console.log("Keep?", keep, "\n");
 
 						if (!keep) {
-							// Now that we have emitted the object we want, we no longer need to keep track of all the values on the stack. This avoids keeping the whole JSON object in memory.
-							for (const row of parserStack) {
-								row.value = undefined;
-							}
-
-							// Also, when processing an array/object, this.value will contain the current state of the array/object. So we should delete the value there too, but leave the array/object so it can still be used by the parser
+							// Doesn't match pathArray, don't need to keep, but only worry about arrays/objects. Or delete this branch and it will overwrite these primitive values too.
+							const type = typeof value;
 							if (
-								typeof parserValue === "object" &&
-								parserValue !== null &&
-								parserKey !== undefined
+								!(
+									type === "string" ||
+									type === "number" ||
+									type === "boolean" ||
+									value === null
+								)
 							) {
-								parserValue[parserKey] = undefined;
+								// Now that we have emitted the object we want, we no longer need to keep track of all the values on the stack. This avoids keeping the whole JSON object in memory.
+								for (const row of parserStack) {
+									row.value = undefined;
+								}
+
+								// Also, when processing an array/object, this.value will contain the current state of the array/object. So we should delete the value there too, but leave the array/object so it can still be used by the parser
+								if (
+									typeof parserValue === "object" &&
+									parserValue !== null &&
+									parserKey !== undefined
+								) {
+									parserValue[parserKey] = undefined;
+								}
 							}
 						}
 					},
