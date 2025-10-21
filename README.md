@@ -68,12 +68,12 @@ await response.body
 
 ```ts
 const jsonParseStream = new JSONParseStream(
-    jsonPaths: (JSONPath | { path: JSONPath; schema: StandardSchemaV1 })[],
+    jsonPaths: (JSONPath | { path: JSONPath; key?: Key; schema?: StandardSchemaV1 })[],
     options?: { multi?: boolean },
 );
 ```
 
-### `jsonPaths: (JSONPath | { path: JSONPath; schema: StandardSchemaV1 })[]`
+### `jsonPaths: (JSONPath | { path: JSONPath; key?: Key; schema?: StandardSchemaV1 })[]`
 
 The first argument to `JSONParseStream` is an array specifying what objects to emit from the stream. The `JSONPath` type is a string containing a JSONPath query. JSONPath is a query language for JSON to let you pick out specific values from a JSON object.
 
@@ -102,7 +102,15 @@ but you can have as many as you want:
 >
 > In total this query means "emit every value in the array/object in the `foo` property of the overall JSON object". So for this JSON `{ foo: ["A", "B", "C"] }` it would emit the three values `"A"`, `"B"`, and `"C"`.
 
-The values of the `jsonPaths` array can either be `JSONPath` strings, or objects like `{ path: JSONPath; schema: StandardSchemaV1 }` where `schema` is a schema validator from any library supporting the [Standard Schema specification](https://github.com/standard-schema/standard-schema) such as Zod, Valibot, or ArkType. When you supply a schema like this, each value will be validated before it is emitted by the stream, and emitted values will have correct TypeScript types rather than being `unknown`. For more details, see the [Schema validation and types for `JSONParseStream` output](#schema-validation-and-types-for-jsonparsestream-output) section below.
+The values of the `jsonPaths` array can either be `JSONPath` strings, or objects like `{ path: JSONPath; key?: Key; schema?: StandardSchemaV1 }` to specify the additional optional `key` and `schema` properties.
+
+#### `key?: Key`
+
+If `key` is defined, it will be propagated through to the `key` property on output objects. So it can be any type, but typically is probably something like a number, string, or Symbol that you want to use to discriminate between types of outputs when you have multiple entries in the `jsonPaths` array. When `key` is not defined, then the value of `path` is used instead. See the [`JSONParseStream` output](#jsonparsestream-output) section below for examples.
+
+#### `schema?: StandardSchemaV1`
+
+`schema` is a schema validator from any library supporting the [Standard Schema specification](https://github.com/standard-schema/standard-schema) such as Zod, Valibot, or ArkType. When you supply a schema like this, each value will be validated before it is emitted by the stream, and emitted values will have correct TypeScript types rather than being `unknown`. For more details, see the [Schema validation and types for `JSONParseStream` output](#schema-validation-and-types-for-jsonparsestream-output) section below.
 
 ### `options?: { multi?: boolean }`
 
@@ -137,16 +145,16 @@ Output from `JSONParseStream` has this format:
 ```ts
 type JSONParseStreamOutput<T = unknown> = {
 	value: T;
-	path: JSONPath;
+	key: Key;
 	wildcardKeys?: string[];
 };
 ```
 
 `value` is the value selected by one of your JSONPath queries.
 
-`path` is the JSONPath query (from the `jsonPaths` parameter of `JSONParseStream`) that matched `value`.
+`key` is the JSONPath query (from the `jsonPaths` parameter of `JSONParseStream`) that matched `value`, or the value from the `key` property inside `jsonPaths` if that was supplied.
 
-If you only have one JSONPath query, you can ignore `path`. But if you have more than one, `path` may be helpful when processing stream output to distinguish between different types of values. For example:
+If you only have one JSONPath query, you can ignore `key`. But if you have more than one, `key` may be helpful when processing stream output to distinguish between different types of values. For example:
 
 <!-- prettier-ignore -->
 ```ts
@@ -160,7 +168,31 @@ await new ReadableStream({
 	.pipeTo(
 		new WritableStream({
 			write(record) {
-				if (record.path === "$.bar[*]") {
+				if (record.key === "$.bar[*]") {
+					// Do something with the values from bar
+				} else {
+					// Do something with the values from foo
+				}
+			},
+		}),
+	);
+```
+
+Or with a manually defined key:
+
+<!-- prettier-ignore -->
+```ts
+await new ReadableStream({
+		start(controller) {
+			controller.enqueue('{ "foo": [1, 2], "bar": ["a", "b", "c"] }');
+			controller.close();
+		},
+	})
+	.pipeThrough(new JSONParseStream([{ key: "bar", path: "$.bar[*]" }, "$.foo[*]"]))
+	.pipeTo(
+		new WritableStream({
+			write(record) {
+				if (record.key === "bar") {
 					// Do something with the values from bar
 				} else {
 					// Do something with the values from foo
@@ -189,8 +221,8 @@ await new ReadableStream({
 		}),
 	);
 // Output:
-// { path: "$[*]", value: [1, 2], wildcardKeys: ["foo"] },
-// { path: "$[*]", value: ["a", "b", "c"], wildcardKeys: ["bar"] },
+// { key: "$[*]", value: [1, 2], wildcardKeys: ["foo"] },
+// { key: "$[*]", value: ["a", "b", "c"], wildcardKeys: ["bar"] },
 ```
 
 The purpose of `wildcardKeys` is to allow you to easily distinguish different types of objects. `wildcardKeys` has one entry for each wildcard object in your JSONPath query.
@@ -225,7 +257,40 @@ await new ReadableStream({
 	.pipeTo(
 		new WritableStream({
 			write(record) {
-				if (record.path === "$.foo[*]") {
+				if (record.key === "$.foo[*]") {
+					// Type of record.value is number
+				} else {
+					// Type of record.value is string
+				}
+			},
+		}),
+	);
+```
+
+For JSONPath queries with no schema, emitted values will have the `unknown` type.
+
+The type of the `key` property will be either the string literal `path` from the input paramter (such as `"$.foo[*]`) or whatever you put in the `key` property of the input. For example:
+
+<!-- prettier-ignore -->
+```ts
+import * as z from "zod";
+
+await new ReadableStream({
+		start(controller) {
+			controller.enqueue('{ "foo": [1, 2], "bar": ["a", "b", "c"] }');
+			controller.close();
+		},
+	})
+	.pipeThrough(
+		new JSONParseStream([
+			{ key: "foo", path: "$.foo[*]", schema: z.number() },
+			{ key: "bar", path: "$.bar[*]", schema: z.string() },
+		]),
+	)
+	.pipeTo(
+		new WritableStream({
+			write(record) {
+				if (record.key === "foo") {
 					// Type of record.value is number
 				} else {
 					// Type of record.value is string
@@ -236,9 +301,7 @@ await new ReadableStream({
 ```
 
 > [!TIP]
-> If you only want to validate some values, you can mix `{ path: JSONPath; schema: StandardSchemaV1 }` and `JSONPath` in the `jsonPaths` array.
-
-For JSONPath queries with no schema, emitted values will have the `unknown` type.
+> If you only want to validate values or override keys for some queries, you can mix `{ path: JSONPath; key?: Key; schema?: StandardSchemaV1 }` and `JSONPath` in the `jsonPaths` array.
 
 ## JSONPath
 
@@ -285,7 +348,7 @@ Let's say you have this JSON:
 { "foo": [1, 2], "bar": ["a", "b", "c"] }
 ```
 
-You want to get all the values in `foo` and all the values in `bar`. You could define them as two separate JSONPath queries and then distinguish the output with `.path`:
+You want to get all the values in `foo` and all the values in `bar`. You could define them as two separate JSONPath queries and then distinguish the output with `.key`:
 
 <!-- prettier-ignore -->
 ```ts
@@ -301,7 +364,7 @@ await new ReadableStream({
 	.pipeTo(
 		new WritableStream({
 			write(record) {
-				if (record.path === "$.foo[*]") {
+				if (record.key === "$.foo[*]") {
 					// 1, 2
 				} else {
 					// a, b, c
@@ -362,7 +425,7 @@ await new ReadableStream({
 	.pipeTo(
 		new WritableStream({
 			write(record) {
-				if (record.path === "$.foo[*]") {
+				if (record.key === "$.foo[*]") {
 					// 1, 2
 				} else {
 					// a, b, c
