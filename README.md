@@ -258,9 +258,9 @@ await new ReadableStream({
 		new WritableStream({
 			write(record) {
 				if (record.key === "$.foo[*]") {
-					// Type of record.value is number
+					// Type of record.value is `number`
 				} else {
-					// Type of record.value is string
+					// Type of record.value is `string`
 				}
 			},
 		}),
@@ -269,7 +269,7 @@ await new ReadableStream({
 
 For JSONPath queries with no schema, emitted values will have the `unknown` type.
 
-The type of the `key` property will be either the string literal `path` from the input paramter (such as `"$.foo[*]`) or whatever you put in the `key` property of the input. For example:
+The type of the `key` property will be either the string literal `path` from the input paramter (such as `"$.foo[*]`) or whatever you put in the `key` property of the input, so you can use it to discriminate between object types in the output. For example:
 
 <!-- prettier-ignore -->
 ```ts
@@ -291,9 +291,9 @@ await new ReadableStream({
 		new WritableStream({
 			write(record) {
 				if (record.key === "foo") {
-					// Type of record.value is number
+					// Type of record.value is `number`
 				} else {
-					// Type of record.value is string
+					// Type of record.value is `string`
 				}
 			},
 		}),
@@ -426,9 +426,9 @@ await new ReadableStream({
 		new WritableStream({
 			write(record) {
 				if (record.key === "$.foo[*]") {
-					// 1, 2
+					// Type of record.value is `number` rather than `unknown`
 				} else {
-					// a, b, c
+					// Type of record.value is `string` rather than `unknown`
 				}
 			},
 		}),
