@@ -327,7 +327,7 @@ Or if the array is at the root if the object like this data:
 [{ "x": 1 }, { "x": 2 }, { "x": 3 }]
 ```
 
-then you'd write something like `$[*]` to emit each object (`{ x: 1}`, `{x: 2}`, `{x: 3}`), or `$[*].key` to emit just the numbers (`1`, `2`, `3`).
+then you'd write something like `$[*]` to emit each object (`{ x: 1}`, `{x: 2}`, `{x: 3}`), or `$[*].x` to emit just the numbers (`1`, `2`, `3`).
 
 To emit the whole object at once (okay in that case you wouldn't use this library, but maybe just for testing, or for `multi` mode) you just use `$`.
 
