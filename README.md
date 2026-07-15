@@ -35,34 +35,20 @@ import { JSONParseStream } from "json-web-streams";
 
 // data.json contains: [{ "x": 1 }, { "x": 2 }, { "x": 3 }]
 const response = await fetch("https://example.com/data.json");
-await response.body
+
+const stream = response.body
 	.pipeThrough(new TextDecoderStream())
-	.pipeThrough(new JSONParseStream(["$[*]"]))
-	.pipeTo(
-		new WritableStream({
-			write({ value }) {
-				console.log(value);
-			},
-		}),
-	);
+	.pipeThrough(new JSONParseStream(["$[*]"]));
+
+for await (const { value } of stream) {
+	console.log(value);
+}
 
 // Output:
 // {"x": 1}
 // {"x": 2}
 // {"x": 3}
 ```
-
-> [!TIP]
-> If you don't have to support Safari, [most other environments](https://caniuse.com/mdn-api_readablestream_--asynciterator) let you use a nicer syntax for consuming stream output as an async iterator:
->
-> ```ts
-> const stream = response.body
-> 	.pipeThrough(new TextDecoderStream())
-> 	.pipeThrough(new JSONParseStream(["$[*]"]));
-> for await (const { value } of stream) {
-> 	console.log(value);
-> }
-> ```
 
 ## API
 
@@ -158,68 +144,60 @@ If you only have one JSONPath query, you can ignore `key`. But if you have more 
 
 <!-- prettier-ignore -->
 ```ts
-await new ReadableStream({
+const stream = new ReadableStream({
 		start(controller) {
 			controller.enqueue('{ "foo": [1, 2], "bar": ["a", "b", "c"] }');
 			controller.close();
 		},
 	})
-	.pipeThrough(new JSONParseStream(["$.bar[*]", "$.foo[*]"]))
-	.pipeTo(
-		new WritableStream({
-			write(record) {
-				if (record.key === "$.bar[*]") {
-					// Do something with the values from bar
-				} else {
-					// Do something with the values from foo
-				}
-			},
-		}),
-	);
+	.pipeThrough(new JSONParseStream(["$.bar[*]", "$.foo[*]"]));
+
+for await (const record of stream) {
+	if (record.key === "$.bar[*]") {
+		// Do something with the values from bar
+	} else {
+		// Do something with the values from foo
+	}
+}
 ```
 
 Or with a manually defined key:
 
 <!-- prettier-ignore -->
 ```ts
-await new ReadableStream({
+const stream = new ReadableStream({
 		start(controller) {
 			controller.enqueue('{ "foo": [1, 2], "bar": ["a", "b", "c"] }');
 			controller.close();
 		},
 	})
-	.pipeThrough(new JSONParseStream([{ key: "bar", path: "$.bar[*]" }, "$.foo[*]"]))
-	.pipeTo(
-		new WritableStream({
-			write(record) {
-				if (record.key === "bar") {
-					// Do something with the values from bar
-				} else {
-					// Do something with the values from foo
-				}
-			},
-		}),
-	);
+	.pipeThrough(new JSONParseStream([{ key: "bar", path: "$.bar[*]" }, "$.foo[*]"]));
+
+for await (const record of stream) {
+	if (record.key === "bar") {
+		// Do something with the values from bar
+	} else {
+		// Do something with the values from foo
+	}
+}
 ```
 
 `wildcardKeys` is defined when you have a wildcard in an object (not an array) somewhere in your JSONPath. For example:
 
 <!-- prettier-ignore -->
 ```ts
-await new ReadableStream({
+const stream = new ReadableStream({
 		start(controller) {
 			controller.enqueue('{ "foo": [1, 2], "bar": ["a", "b", "c"] }');
 			controller.close();
 		},
 	})
-	.pipeThrough(new JSONParseStream(["$[*]"]))
-	.pipeTo(
-		new WritableStream({
-			write(record) {
-				console.log(record);
-			},
-		}),
-	);
+	.pipeThrough(new JSONParseStream(["$[*]"]));
+
+for await (const record of stream) {
+	console.log(record);
+}
+
 // Output:
 // { key: "$[*]", value: [1, 2], wildcardKeys: ["foo"] },
 // { key: "$[*]", value: ["a", "b", "c"], wildcardKeys: ["bar"] },
@@ -230,7 +208,7 @@ The purpose of `wildcardKeys` is to allow you to easily distinguish different ty
 > [!WARNING]
 > It is possible to have two JSONPath queries that output overlapping objects, like if your data is `{ "foo": [1, 2] }` and you query for both `$` and `$.foo`. This will emit two objects: `{ foo: [1, 2] }` and `[1, 2]`. Due to how json-web-streams works internally, both of those objects share the same array instance, meaning that if the array in one is mutated it will affect the other.
 >
-> Some schema validation libraries do a deep clone of objects they validate. In that case, you won't have this issue. Otherwise, in the rare case that you query for overlapping objects, you will have to handle this problem, such as by deep cloning one of the objects.
+> Some schema validation libraries do a deep clone of objects they validate. In that case, you won't have this issue.
 
 #### Schema validation and types for `JSONParseStream` output
 
@@ -242,7 +220,7 @@ To use schema validation for a JSONPath query, then pass an object `{ path: JSON
 ```ts
 import * as z from "zod";
 
-await new ReadableStream({
+const stream = new ReadableStream({
 		start(controller) {
 			controller.enqueue('{ "foo": [1, 2], "bar": ["a", "b", "c"] }');
 			controller.close();
@@ -253,18 +231,15 @@ await new ReadableStream({
 			{ path: "$.foo[*]", schema: z.number() },
 			{ path: "$.bar[*]", schema: z.string() },
 		]),
-	)
-	.pipeTo(
-		new WritableStream({
-			write(record) {
-				if (record.key === "$.foo[*]") {
-					// Type of record.value is `number`
-				} else {
-					// Type of record.value is `string`
-				}
-			},
-		}),
 	);
+
+for await (const record of stream) {
+	if (record.key === "$.foo[*]") {
+		// Type of record.value is `number`
+	} else {
+		// Type of record.value is `string`
+	}
+}
 ```
 
 For JSONPath queries with no schema, emitted values will have the `unknown` type.
@@ -275,7 +250,7 @@ The type of the `key` property will be either the string literal `path` from the
 ```ts
 import * as z from "zod";
 
-await new ReadableStream({
+const stream = new ReadableStream({
 		start(controller) {
 			controller.enqueue('{ "foo": [1, 2], "bar": ["a", "b", "c"] }');
 			controller.close();
@@ -286,18 +261,15 @@ await new ReadableStream({
 			{ key: "foo", path: "$.foo[*]", schema: z.number() },
 			{ key: "bar", path: "$.bar[*]", schema: z.string() },
 		]),
-	)
-	.pipeTo(
-		new WritableStream({
-			write(record) {
-				if (record.key === "foo") {
-					// Type of record.value is `number`
-				} else {
-					// Type of record.value is `string`
-				}
-			},
-		}),
 	);
+
+for await (const record of stream) {
+	if (record.key === "foo") {
+		// Type of record.value is `number`
+	} else {
+		// Type of record.value is `string`
+	}
+}
 ```
 
 > [!TIP]
@@ -352,7 +324,7 @@ You want to get all the values in `foo` and all the values in `bar`. You could d
 
 <!-- prettier-ignore -->
 ```ts
-await new ReadableStream({
+const stream = new ReadableStream({
 		start(controller) {
 			controller.enqueue('{ "foo": [1, 2], "bar": ["a", "b", "c"] }');
 			controller.close();
@@ -360,25 +332,22 @@ await new ReadableStream({
 	})
 	.pipeThrough(
 		new JSONParseStream(["$.foo[*]", "$.bar[*]"]),
-	)
-	.pipeTo(
-		new WritableStream({
-			write(record) {
-				if (record.key === "$.foo[*]") {
-					// 1, 2
-				} else {
-					// a, b, c
-				}
-			},
-		}),
 	);
+
+for await (const record of stream) {
+	if (record.key === "$.foo[*]") {
+		// 1, 2
+	} else {
+		// a, b, c
+	}
+}
 ```
 
 Or you could use one JSONPath query with a wildcard, and then use `.wildcardKeys` to distinguish the objects:
 
 <!-- prettier-ignore -->
 ```ts
-await new ReadableStream({
+const stream = new ReadableStream({
 		start(controller) {
 			controller.enqueue('{ "foo": [1, 2], "bar": ["a", "b", "c"] }');
 			controller.close();
@@ -386,18 +355,15 @@ await new ReadableStream({
 	})
 	.pipeThrough(
 		new JSONParseStream(["$[*][*]"]),
-	)
-	.pipeTo(
-		new WritableStream({
-			write(record) {
-				if (record.wildcardKeys[0] === "foo") {
-					// 1, 2
-				} else {
-					// a, b, c
-				}
-			},
-		}),
 	);
+
+for await (const record of stream) {
+	if (record.wildcardKeys[0] === "foo") {
+		// 1, 2
+	} else {
+		// a, b, c
+	}
+}
 ```
 
 Using multiple JSONPath queries is a little more explicit, but using wildcard keys is more concise, especially if you had more than just two types of objects. And instead of known keys like `foo` and `bar` your JSON had some unknown keys, then using a wildcard would be your only option.
@@ -410,7 +376,7 @@ In this example, Zod schemas enforce that `record.value` is either a `string` or
 ```ts
 import * as z from "zod";
 
-await new ReadableStream({
+const stream = new ReadableStream({
 		start(controller) {
 			controller.enqueue('{ "foo": [1, 2], "bar": ["a", "b", "c"] }');
 			controller.close();
@@ -421,16 +387,13 @@ await new ReadableStream({
 			{ path: "$.foo[*]", schema: z.number() },
 			{ path: "$.bar[*]", schema: z.string() },
 		]),
-	)
-	.pipeTo(
-		new WritableStream({
-			write(record) {
-				if (record.key === "$.foo[*]") {
-					// Type of record.value is `number` rather than `unknown`
-				} else {
-					// Type of record.value is `string` rather than `unknown`
-				}
-			},
-		}),
 	);
+
+for await (const record of stream) {
+	if (record.key === "$.foo[*]") {
+		// Type of record.value is `number` rather than `unknown`
+	} else {
+		// Type of record.value is `string` rather than `unknown`
+	}
+}
 ```
