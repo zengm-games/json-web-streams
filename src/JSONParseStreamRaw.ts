@@ -219,6 +219,15 @@ export class JSONParseStreamRaw {
 				this.tokenizerState === "STRING6"
 			) {
 				// Unicode hex codes
+				if (
+					!(
+						(n >= "0" && n <= "9") ||
+						(n >= "a" && n <= "f") ||
+						(n >= "A" && n <= "F")
+					)
+				) {
+					return this.charError(n, i);
+				}
 				this.unicode += n;
 				if (this.tokenizerState === "STRING3") {
 					this.tokenizerState = "STRING4";
@@ -228,9 +237,6 @@ export class JSONParseStreamRaw {
 					this.tokenizerState = "STRING6";
 				} else if (this.tokenizerState === "STRING6") {
 					const intVal = Number.parseInt(this.unicode!, 16);
-					if (Number.isNaN(intVal)) {
-						return this.charError(n, i);
-					}
 					this.unicode = undefined;
 					if (
 						this.highSurrogate !== undefined &&

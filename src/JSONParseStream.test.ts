@@ -73,6 +73,29 @@ describe("Parsing", async () => {
 		assert.instanceOf(error, Error);
 	});
 
+	for (const escape of [
+		"\\u12zz",
+		"\\u0x12",
+		"\\u-123",
+		"\\u+123",
+		"\\u 123",
+	]) {
+		test(`Invalid unicode escape ${JSON.stringify(escape)} is an error`, async () => {
+			let error;
+			try {
+				await parseWholeJson(`["${escape}"]`);
+			} catch (error2) {
+				error = error2;
+			}
+			assert.instanceOf(error, Error);
+		});
+	}
+
+	test("Unicode escapes are case insensitive", async () => {
+		const json = '["\\u00aB\\u00Cd"]';
+		assert.deepStrictEqual(await parseWholeJson(json), JSON.parse(json));
+	});
+
 	test("Unterminated string reports unexpected end of input", async () => {
 		let error;
 		try {
