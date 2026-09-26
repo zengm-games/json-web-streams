@@ -521,7 +521,9 @@ export class JSONParseStreamRaw {
 		// Check for lonely number - other vaues have a defined end (like null is always 4 letters, so we can emit it after the 4th letter), but for lonely numbers there is no way to tell when the end is
 		if (
 			this.state === "VALUE" &&
-			this.tokenizerState === "NUMBER" &&
+			(this.tokenizerState === "NUMBER" ||
+				this.tokenizerState === "NUMBER0" ||
+				this.tokenizerState === "NUMBER-") &&
 			this.string !== undefined
 		) {
 			this.numberReviver(this.string!, this.position - 1);

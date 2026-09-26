@@ -56,6 +56,22 @@ describe("Parsing", async () => {
 			}
 		});
 	}
+
+	for (const json of ["0", "-0", " 0 ", "-1"]) {
+		test(`Lonely number ${JSON.stringify(json)}`, async () => {
+			assert.strictEqual(await parseWholeJson(json), JSON.parse(json));
+		});
+	}
+
+	test("Lonely minus sign is an error", async () => {
+		let error;
+		try {
+			await parseWholeJson("-");
+		} catch (error2) {
+			error = error2;
+		}
+		assert.instanceOf(error, Error);
+	});
 });
 
 describe("Streaming", () => {
@@ -319,5 +335,35 @@ describe("Multi option", () => {
 			{ value: [2], key: path },
 			{ value: [3], key: path },
 		]);
+	});
+
+	test("Number at the end of input is emitted", async () => {
+		const json = "{} 0";
+		const path = "$";
+		const stream = makeReadableStreamFromJson(json).pipeThrough(
+			new JSONParseStream([path], {
+				multi: true,
+			}),
+		);
+		const chunks = await Array.fromAsync(stream);
+		assert.deepStrictEqual(chunks, [
+			{ value: {}, key: path },
+			{ value: 0, key: path },
+		]);
+	});
+
+	test("Lonely minus sign at the end of input is an error", async () => {
+		const stream = makeReadableStreamFromJson("{} -").pipeThrough(
+			new JSONParseStream(["$"], {
+				multi: true,
+			}),
+		);
+		let error;
+		try {
+			await Array.fromAsync(stream);
+		} catch (error2) {
+			error = error2;
+		}
+		assert.instanceOf(error, Error);
 	});
 });
