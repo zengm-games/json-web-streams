@@ -96,6 +96,21 @@ describe("Parsing", async () => {
 		assert.deepStrictEqual(await parseWholeJson(json), JSON.parse(json));
 	});
 
+	for (const json of [
+		'["\\uD834\\uDD1E"]', // Valid surrogate pair
+		'["\\uD800abc"]', // Lone high surrogate followed by text
+		'["\\uD800\\n"]', // Lone high surrogate followed by another escape
+		'["\\uD800"]', // Lone high surrogate at end of string
+		'["\\uD800", "\\uDC00"]', // Lone surrogates in separate strings
+		'["\\uD800\\uD800\\uDC00"]', // Two high surrogates then a low surrogate
+		'["\\uDC00\\uD800"]', // Surrogates in reverse order
+		'{"\\uD800": "\\uDC00"}', // Lone surrogates in key and value
+	]) {
+		test(`Surrogates ${json}`, async () => {
+			assert.deepStrictEqual(await parseWholeJson(json), JSON.parse(json));
+		});
+	}
+
 	test("Unterminated string reports unexpected end of input", async () => {
 		let error;
 		try {

@@ -69,7 +69,6 @@ export class JSONParseStreamRaw {
 	onPush: OnPopPush | undefined;
 	onValue: OnValue;
 	unicode: string | undefined;
-	highSurrogate: number | undefined;
 	seenRootObject = false;
 	multi: boolean | undefined;
 	multiIndex = 0;
@@ -238,29 +237,7 @@ export class JSONParseStreamRaw {
 				} else if (this.tokenizerState === "STRING6") {
 					const intVal = Number.parseInt(this.unicode!, 16);
 					this.unicode = undefined;
-					if (
-						this.highSurrogate !== undefined &&
-						intVal >= 0xdc00 &&
-						intVal < 0xdfff + 1
-					) {
-						//<56320,57343> - lowSurrogate
-						this.string += String.fromCharCode(this.highSurrogate, intVal);
-						this.highSurrogate = undefined;
-					} else if (
-						this.highSurrogate === undefined &&
-						intVal >= 0xd800 &&
-						intVal < 0xdbff + 1
-					) {
-						//<55296,56319> - highSurrogate
-						this.highSurrogate = intVal;
-					} else {
-						if (this.highSurrogate !== undefined) {
-							this.string += String.fromCharCode(this.highSurrogate);
-							this.highSurrogate = undefined;
-						}
-						this.string += String.fromCharCode(intVal);
-					}
-
+					this.string += String.fromCharCode(intVal);
 					this.tokenizerState = "STRING1";
 				}
 			} else if (
