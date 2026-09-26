@@ -262,13 +262,7 @@ describe("Streaming", () => {
 
 	test("[*][*] for object and array", async () => {
 		// These are all equivalent
-		const jsonPaths = [
-			"$.*.*",
-			"$[*].*",
-			"$.*[*]",
-			"$[*][*]",
-			"$[*,*]",
-		] as const;
+		const jsonPaths = ["$.*.*", "$[*].*", "$.*[*]", "$[*][*]"] as const;
 
 		const data = {
 			foo: [1, 2],

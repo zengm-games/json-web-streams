@@ -281,7 +281,7 @@ json-web-streams supports a subset of JSONPath. Currently the supported componen
 
 - **The root node**, represented by the symbol `$` which must be the first character of any JSONPath query.
 
-- **Name selectors** which are like accessing a property in a JS object. For instance if you have an object like `{ "foo": { bar: 5 } }`, then `$.foo.bar` refers to the value `5`. You can also write this in the more verbose bracket notation like `$["foo"]["bar"]` or `$["foo", "bar"]`, which is useful if your key names include characters that need escaping. You can also mix them like `$.foo["bar"]` or use single quotes like `$['foo']['bar']` - all of these JSONPath queries have the same meaning.
+- **Name selectors** which are like accessing a property in a JS object. For instance if you have an object like `{ "foo": { bar: 5 } }`, then `$.foo.bar` refers to the value `5`. You can also write this in the more verbose bracket notation like `$["foo"]["bar"]`, which is useful if your key names include characters that need escaping. You can also mix them like `$.foo["bar"]` or use single quotes like `$['foo']['bar']` - all of these JSONPath queries have the same meaning.
 
 - **Wildcard selectors** which select every value in an array or object. With this JSON `{ "foo": { "a": 1, "b": 2, "c": 3 } }`, the JSONPath query `$.foo[*]` would emit the three individual numbers `1`, `2`, and `3`. If the inner object was changed to an array like `{ "foo": [1, 2, 3] }`, the same JSONPath query would emit the same values.
 

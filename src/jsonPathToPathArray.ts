@@ -20,24 +20,29 @@ export const jsonPathToPathArray = (path: JSONPath): PathArray => {
 	} catch (error) {
 		throw new Error(`Error parsing JSONPath "${path}"`, { cause: error });
 	}
-	return parsed.segments.flatMap((segment) => {
+	return parsed.segments.map((segment) => {
 		if (segment.type === "ChildSegment") {
 			const node = segment.node;
 			if (node.type === "MemberNameShorthand") {
 				return { type: "key", value: node.value };
 			} else if (node.type === "BracketedSelection") {
-				return node.selectors.map((selector) => {
-					if (selector.type === "NameSelector") {
-						return {
-							type: "key",
-							value: selector.value,
-						};
-					} else if (selector.type === "WildcardSelector") {
-						return { type: "wildcard" };
-					} else {
-						throw new Error(`Unsupported node: ${JSON.stringify(node)}`);
-					}
-				});
+				// Multiple selectors like $['foo','bar'] are a union (select foo OR bar), which is not supported
+				if (node.selectors.length !== 1) {
+					throw new Error(
+						`Multiple selectors in brackets are not supported in JSONPath "${path}"`,
+					);
+				}
+				const selector = node.selectors[0]!;
+				if (selector.type === "NameSelector") {
+					return {
+						type: "key",
+						value: selector.value,
+					};
+				} else if (selector.type === "WildcardSelector") {
+					return { type: "wildcard" };
+				} else {
+					throw new Error(`Unsupported node: ${JSON.stringify(node)}`);
+				}
 			} else if (node.type === "WildcardSelector") {
 				return { type: "wildcard" };
 			} else {
