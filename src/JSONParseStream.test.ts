@@ -72,6 +72,17 @@ describe("Parsing", async () => {
 		}
 		assert.instanceOf(error, Error);
 	});
+
+	test("Unterminated string reports unexpected end of input", async () => {
+		let error;
+		try {
+			await parseWholeJson('"abc');
+		} catch (error2) {
+			error = error2;
+		}
+		assert.instanceOf(error, Error);
+		assert.include((error as Error).message, "Unexpected end of input");
+	});
 });
 
 describe("Streaming", () => {
@@ -351,6 +362,24 @@ describe("Multi option", () => {
 			{ value: 0, key: path },
 		]);
 	});
+
+	for (const truncated of ["tru", "fals", "nul", '"abc', '"abc\\', '"\\u12']) {
+		test(`Truncated value ${JSON.stringify(truncated)} at the end of input is an error`, async () => {
+			const stream = makeReadableStreamFromJson(`{} ${truncated}`).pipeThrough(
+				new JSONParseStream(["$"], {
+					multi: true,
+				}),
+			);
+			let error;
+			try {
+				await Array.fromAsync(stream);
+			} catch (error2) {
+				error = error2;
+			}
+			assert.instanceOf(error, Error);
+			assert.include((error as Error).message, "Unexpected end of input");
+		});
+	}
 
 	test("Lonely minus sign at the end of input is an error", async () => {
 		const stream = makeReadableStreamFromJson("{} -").pipeThrough(

@@ -528,7 +528,17 @@ export class JSONParseStreamRaw {
 		) {
 			this.numberReviver(this.string!, this.position - 1);
 			this.string = undefined;
-		} else if (!this.seenRootObject) {
+			this.tokenizerState = "START";
+		}
+
+		// Input ended in the middle of a string or literal like true/false/null
+		if (this.tokenizerState !== "START") {
+			throw new Error(
+				`Unexpected end of input at position ${this.position} in state ${this.tokenizerState}`,
+			);
+		}
+
+		if (!this.seenRootObject) {
 			// Check for empty input
 			throw new Error("No data in input");
 		}
