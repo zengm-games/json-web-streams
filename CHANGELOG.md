@@ -1,4 +1,4 @@
-# Dev
+# 1.2.0 (2026-09-26)
 
 - Performance improvements, around 3x faster for typical usage.
 
