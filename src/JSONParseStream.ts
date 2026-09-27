@@ -196,6 +196,34 @@ export class JSONParseStream<
 				parser = new JSONParseStreamRaw({
 					multi: options?.multi,
 
+					// An object/array can be parsed all at once if no JSONPath query could match anything inside it
+					parseWholeValue: () => {
+						const depth = parser.stack.length;
+						if (depth >= maxPathArrayLength) {
+							return true;
+						}
+
+						for (const { pathArray } of jsonPathInfos) {
+							if (pathArray.length <= depth) {
+								continue;
+							}
+
+							// Could match something inside this object/array, if the path so far matches
+							let prefixMatches = true;
+							for (let j = 0; j < depth; j++) {
+								if (!isEqual(pathArray[j]!, parser.stack[j + 1] ?? parser)) {
+									prefixMatches = false;
+									break;
+								}
+							}
+							if (prefixMatches) {
+								return false;
+							}
+						}
+
+						return true;
+					},
+
 					// When we receive a new object key, that could make a path match if that now matches the last component of pathArray
 					onKey: (stackLength) => {
 						if (

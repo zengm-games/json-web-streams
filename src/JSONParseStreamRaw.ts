@@ -79,24 +79,36 @@ export class JSONParseStreamRaw {
 	multi: boolean | undefined;
 	multiIndex = 0;
 
+	// Called at the start of each object/array. If it returns true, then the caller doesn't need any events from inside this object/array, so it can be parsed all at once by JSON.parse, which is much faster than parsing character by character. Only the structure of the JSON is tracked while "capturing" the text of the value (depth of nesting, and whether we're inside a string) to find where it ends, and JSON.parse does the validation. If JSON.parse fails, the captured text is re-parsed by the normal parser, to produce the same error messages as normal.
+	parseWholeValue: (() => boolean) | undefined;
+	captureDisabled = false;
+	capturePieces: string[] | undefined;
+	captureStart = 0;
+	captureDepth = 0;
+	captureInString = false;
+	captureEscaped = false;
+
 	constructor({
 		multi,
 		onKey,
 		onPop,
 		onPush,
 		onValue,
+		parseWholeValue,
 	}: {
 		multi?: boolean;
 		onKey?: OnPopPush;
 		onPop?: OnPopPush;
 		onPush?: OnPopPush;
 		onValue: OnValue;
+		parseWholeValue?: () => boolean;
 	}) {
 		this.multi = multi;
 		this.onKey = onKey;
 		this.onPop = onPop;
 		this.onPush = onPush;
 		this.onValue = onValue;
+		this.parseWholeValue = parseWholeValue;
 	}
 
 	charError(char: string, i: number) {
@@ -115,8 +127,127 @@ export class JSONParseStreamRaw {
 		);
 	}
 
+	shouldCapture() {
+		return (
+			this.parseWholeValue !== undefined &&
+			!this.captureDisabled &&
+			(this.state === "VALUE" || this.state === "VALUE_AFTER_COMMA") &&
+			this.parseWholeValue()
+		);
+	}
+
+	// Start capturing the object/array beginning at text[i]. Returns the index the main loop in write should continue from (before its i++), which is either the end of the value or the end of this chunk
+	startCapture(text: string, i: number) {
+		this.captureStart = this.position + i;
+		this.captureDepth = 0;
+		this.captureInString = false;
+		this.captureEscaped = false;
+
+		const end = this.scanCapture(text, i);
+		if (end === -1) {
+			// Value continues in the next chunk
+			this.capturePieces = [text.slice(i)];
+			return text.length - 1;
+		}
+
+		this.endCapture(text.slice(i, end + 1));
+		return end;
+	}
+
+	// Find the end of the value being captured. Returns the index of the closing bracket, or -1 if the value continues past the end of this chunk
+	scanCapture(text: string, start: number) {
+		const l = text.length;
+		let j = start;
+		if (this.captureEscaped && j < l) {
+			// Previous chunk ended with a backslash in a string, so skip the escaped character
+			this.captureEscaped = false;
+			j += 1;
+		}
+
+		let depth = this.captureDepth;
+		let inString = this.captureInString;
+		for (; j < l; j++) {
+			const code = text.charCodeAt(j);
+			if (inString) {
+				if (code === 0x5c) {
+					// Backslash, skip the escaped character
+					j += 1;
+					if (j === l) {
+						this.captureEscaped = true;
+					}
+				} else if (code === 0x22) {
+					// "
+					inString = false;
+				}
+			} else if (code === 0x22) {
+				// "
+				inString = true;
+			} else if (code === 0x7b || code === 0x5b) {
+				// { or [
+				depth += 1;
+			} else if (code === 0x7d || code === 0x5d) {
+				// } or ]
+				depth -= 1;
+				if (depth === 0) {
+					return j;
+				}
+			}
+		}
+
+		this.captureDepth = depth;
+		this.captureInString = inString;
+		return -1;
+	}
+
+	endCapture(json: string) {
+		this.capturePieces = undefined;
+
+		let value;
+		try {
+			value = JSON.parse(json);
+		} catch {
+			// Invalid JSON, so parse it again with the normal parser to get an error message consistent with the rest of the parser
+			this.parseCaptureStrict(json);
+
+			// Normally the line above will throw an error, but just in case it's valid JSON that JSON.parse rejected, it will have been parsed normally and there's nothing more to do here
+			return;
+		}
+
+		if (this.stack.length === 0) {
+			this.seenRootObject = true;
+		}
+		if (this.value) {
+			this.value[this.key!] = value;
+		}
+		this.emit(value);
+	}
+
+	parseCaptureStrict(json: string) {
+		const position = this.position;
+		this.position = this.captureStart;
+		this.captureDisabled = true;
+		this.write(json);
+		this.captureDisabled = false;
+		this.position = position;
+	}
+
 	write(text: string) {
-		for (let i = 0, l = text.length; i < l; i++) {
+		let i = 0;
+
+		if (this.capturePieces !== undefined) {
+			// Continue capturing a value from a previous chunk
+			const end = this.scanCapture(text, 0);
+			if (end === -1) {
+				this.capturePieces.push(text);
+				this.position += text.length;
+				return;
+			}
+			this.capturePieces.push(text.slice(0, end + 1));
+			this.endCapture(this.capturePieces.join(""));
+			i = end + 1;
+		}
+
+		for (const l = text.length; i < l; i++) {
 			const n = text[i]!;
 			//console.log('character', n, this.tokenizerState);
 
@@ -132,11 +263,19 @@ export class JSONParseStreamRaw {
 
 			if (this.tokenizerState === "START") {
 				if (n === "{") {
-					this.onToken("LEFT_BRACE", "{", i);
+					if (this.shouldCapture()) {
+						i = this.startCapture(text, i);
+					} else {
+						this.onToken("LEFT_BRACE", "{", i);
+					}
 				} else if (n === "}") {
 					this.onToken("RIGHT_BRACE", "}", i);
 				} else if (n === "[") {
-					this.onToken("LEFT_BRACKET", "[", i);
+					if (this.shouldCapture()) {
+						i = this.startCapture(text, i);
+					} else {
+						this.onToken("LEFT_BRACKET", "[", i);
+					}
 				} else if (n === "]") {
 					this.onToken("RIGHT_BRACKET", "]", i);
 				} else if (n === ":") {
@@ -552,6 +691,13 @@ export class JSONParseStreamRaw {
 	}
 
 	checkEnd() {
+		if (this.capturePieces !== undefined) {
+			// Input ended in the middle of a captured value. Parse what we have normally, and then the checks below will produce the appropriate error.
+			const json = this.capturePieces.join("");
+			this.capturePieces = undefined;
+			this.parseCaptureStrict(json);
+		}
+
 		if (this.stack.length > 0) {
 			throw new Error(
 				`Unexpected end of input at position ${this.position} in state ${this.state}`,

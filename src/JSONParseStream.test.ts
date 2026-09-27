@@ -5,237 +5,319 @@ import { JSONParseStream } from "./JSONParseStream.ts";
 import type { JSONPath } from "./jsonPathToPathArray.ts";
 import { makeReadableStreamFromJson } from "./test/utils.ts";
 
-describe("Parsing", async () => {
-	const parseWholeJson = async (json: string) => {
-		// With JSONPath $ (return root object) it should only emit one chunk, but with invalid JSON there could be more text, and we need to read through it all to make sure we see any errors that appear
-		let firstValue: any;
+const parseJson = async (
+	json: string,
+	mode: "whole values" | "character by character",
+	chunkSize = Infinity,
+) => {
+	// With JSONPath $ (return root object) it should only emit one chunk, but with invalid JSON there could be more text, and we need to read through it all to make sure we see any errors that appear
+	let firstValue: any;
 
-		await makeReadableStreamFromJson(json)
-			.pipeThrough(new JSONParseStream(["$"]))
-			.pipeTo(
-				new WritableStream({
-					write({ value }) {
-						if (firstValue === undefined) {
-							firstValue = value;
-						}
-					},
-				}),
-			);
+	const jsonParseStream = new JSONParseStream(["$"]);
+	const parser = jsonParseStream._parser;
+	if (mode === "character by character") {
+		parser.parseWholeValue = undefined;
+	}
 
-		return firstValue;
+	// Track if we fall back to character by character parsing of a captured value, which should only happen for invalid JSON. Otherwise, it's a bug in finding the end of the captured value, which would still produce the correct output due to the fallback, but would be slow.
+	let usedFallback = false;
+	const parseCaptureStrict = parser.parseCaptureStrict.bind(parser);
+	parser.parseCaptureStrict = (json) => {
+		usedFallback = true;
+		parseCaptureStrict(json);
 	};
 
+	await new ReadableStream({
+		start(controller) {
+			for (let i = 0; i < json.length; i += chunkSize) {
+				controller.enqueue(json.slice(i, i + chunkSize));
+			}
+			controller.close();
+		},
+	})
+		.pipeThrough(jsonParseStream)
+		.pipeTo(
+			new WritableStream({
+				write({ value }) {
+					if (firstValue === undefined) {
+						firstValue = value;
+					}
+				},
+			}),
+		);
+
+	if (usedFallback) {
+		throw new Error(
+			"Valid JSON fell back to character by character parsing of a captured value",
+		);
+	}
+
+	return firstValue;
+};
+
+// Run parsing tests in both modes. With the JSONPath $ objects/arrays are normally parsed all at once by JSON.parse, but the character by character parser is still used in other situations, so it needs to be tested too
+for (const mode of ["whole values", "character by character"] as const)
+	describe(`Parsing - ${mode}`, async () => {
+		const parseWholeJson = (json: string, chunkSize?: number) =>
+			parseJson(json, mode, chunkSize);
+
+		for await (const entry of glob(
+			path.join(__dirname, "test/parsing/**/*.json"),
+		)) {
+			const filename = path.basename(entry);
+			const shouldPass =
+				filename.startsWith("pass") || filename.startsWith("y_");
+
+			test(filename, async () => {
+				const json = await readFile(entry, "utf8");
+
+				let error, object;
+				try {
+					object = await parseWholeJson(json);
+				} catch (error2) {
+					error = error2;
+				}
+
+				if (shouldPass && error) {
+					throw new Error("Expected valid JSON, but parsing failed", {
+						cause: error,
+					});
+				} else if (!shouldPass && !error) {
+					throw new Error("Expected invalid JSON, but parsing succeeded");
+				}
+
+				// If we expected a pass, confirm the parsed object matches JSON.parse
+				if (shouldPass) {
+					const object2 = JSON.parse(json);
+					assert.deepStrictEqual(object, object2);
+				}
+			});
+		}
+
+		for (const json of ["0", "-0", " 0 ", "-1"]) {
+			test(`Lonely number ${JSON.stringify(json)}`, async () => {
+				assert.strictEqual(await parseWholeJson(json), JSON.parse(json));
+			});
+		}
+
+		const numbers = [
+			"0",
+			"-0",
+			"12",
+			"-12",
+			"0.5",
+			"-0.5",
+			"10.25",
+			"1e5",
+			"1E5",
+			"1e+5",
+			"1e-5",
+			"0e0",
+			"1.5e10",
+			"-1.5E-10",
+			"123456789012345678901234567890",
+			"1e400",
+			"-1e400",
+			"1e-400",
+		];
+		for (const number of numbers) {
+			for (const json of [number, `[${number}]`, `{"a":${number}}`]) {
+				test(`Number ${json}`, async () => {
+					assert.deepStrictEqual(await parseWholeJson(json), JSON.parse(json));
+				});
+
+				test(`Number ${json}, one character per chunk`, async () => {
+					assert.deepStrictEqual(
+						await parseWholeJson(json, 1),
+						JSON.parse(json),
+					);
+				});
+			}
+		}
+
+		// Error position should point at the first character that makes the number invalid
+		const invalidNumbers = {
+			"[1.2.3]": 4,
+			"[1.]": 3,
+			"[1.e5]": 3,
+			"[-]": 2,
+			"[-a]": 2,
+			"[1e]": 3,
+			"[1e+]": 4,
+			"[1e5e5]": 4,
+			"[1+2]": 2,
+			"[1-2]": 4, // 1 and -2 are both valid numbers, so this is a parser error at the end of the second number
+
+			"[01]": 1,
+			"[.5]": 1,
+		};
+		for (const [json, position] of Object.entries(invalidNumbers)) {
+			test(`Invalid number ${json} errors at position ${position}`, async () => {
+				let error;
+				try {
+					await parseWholeJson(json);
+				} catch (error2) {
+					error = error2;
+				}
+				assert.instanceOf(error, Error);
+				assert.include((error as Error).message, `at position ${position} `);
+			});
+		}
+
+		test("Lonely minus sign is an error", async () => {
+			let error;
+			try {
+				await parseWholeJson("-");
+			} catch (error2) {
+				error = error2;
+			}
+			assert.instanceOf(error, Error);
+		});
+
+		for (const escape of [
+			"\\u12zz",
+			"\\u0x12",
+			"\\u-123",
+			"\\u+123",
+			"\\u 123",
+		]) {
+			test(`Invalid unicode escape ${JSON.stringify(escape)} is an error`, async () => {
+				let error;
+				try {
+					await parseWholeJson(`["${escape}"]`);
+				} catch (error2) {
+					error = error2;
+				}
+				assert.instanceOf(error, Error);
+			});
+		}
+
+		test("Unicode escapes are case insensitive", async () => {
+			const json = '["\\u00aB\\u00Cd"]';
+			assert.deepStrictEqual(await parseWholeJson(json), JSON.parse(json));
+		});
+
+		for (const json of [
+			'["\\uD834\\uDD1E"]', // Valid surrogate pair
+			'["\\uD800abc"]', // Lone high surrogate followed by text
+			'["\\uD800\\n"]', // Lone high surrogate followed by another escape
+			'["\\uD800"]', // Lone high surrogate at end of string
+			'["\\uD800", "\\uDC00"]', // Lone surrogates in separate strings
+			'["\\uD800\\uD800\\uDC00"]', // Two high surrogates then a low surrogate
+			'["\\uDC00\\uD800"]', // Surrogates in reverse order
+			'{"\\uD800": "\\uDC00"}', // Lone surrogates in key and value
+		]) {
+			test(`Surrogates ${json}`, async () => {
+				assert.deepStrictEqual(await parseWholeJson(json), JSON.parse(json));
+			});
+		}
+
+		const strings = [
+			'""',
+			'"abc"',
+			'"a\\"b\\\\c\\/d\\be\\ff\\ng\\rh\\ti"',
+			'"\\u00e9 and é and \\uD834\\uDD1E and 𝄞"',
+			'["abc", "", "def", {"key with spaces": "value \\" with quote"}]',
+			JSON.stringify({ long: "x".repeat(1000), escaped: "\n".repeat(100) }),
+			// Brackets and escaped backslashes/quotes inside strings, which must not be confused with the end of an object/array
+			'["]", "}", "[{", "\\\\", "\\\\\\"]", {"}": "]"}]',
+		];
+		for (const json of strings) {
+			for (const chunkSize of [1, 2, 3, 7]) {
+				test(`Strings ${json.slice(0, 40)}, ${chunkSize} characters per chunk`, async () => {
+					assert.deepStrictEqual(
+						await parseWholeJson(json, chunkSize),
+						JSON.parse(json),
+					);
+				});
+			}
+		}
+
+		// Error position should point at the control character
+		const invalidStrings = {
+			'["\n"]': 2,
+			'["abc\tdef"]': 5,
+			'["abc\\n\u0000"]': 7,
+			'["ab\u0001c\u0002"]': 4,
+		};
+		for (const [json, position] of Object.entries(invalidStrings)) {
+			test(`Invalid string ${JSON.stringify(json)} errors at position ${position}`, async () => {
+				let error;
+				try {
+					await parseWholeJson(json);
+				} catch (error2) {
+					error = error2;
+				}
+				assert.instanceOf(error, Error);
+				assert.include((error as Error).message, `at position ${position} `);
+			});
+		}
+
+		test("Unterminated string reports unexpected end of input", async () => {
+			let error;
+			try {
+				await parseWholeJson('"abc');
+			} catch (error2) {
+				error = error2;
+			}
+			assert.instanceOf(error, Error);
+			assert.include((error as Error).message, "Unexpected end of input");
+		});
+	});
+
+describe("Whole value parsing matches character by character parsing", async () => {
+	const getResult = async (
+		json: string,
+		mode: "whole values" | "character by character",
+		chunkSize?: number,
+	) => {
+		try {
+			return { value: await parseJson(json, mode, chunkSize) };
+		} catch (error) {
+			return { error: (error as Error).message };
+		}
+	};
+
+	const cases: [string, string][] = [];
 	for await (const entry of glob(
 		path.join(__dirname, "test/parsing/**/*.json"),
 	)) {
-		const filename = path.basename(entry);
-		const shouldPass = filename.startsWith("pass") || filename.startsWith("y_");
-
-		test(filename, async () => {
-			const json = await readFile(entry, "utf8");
-
-			let error, object;
-			try {
-				object = await parseWholeJson(json);
-			} catch (error2) {
-				error = error2;
-			}
-
-			if (shouldPass && error) {
-				throw new Error("Expected valid JSON, but parsing failed", {
-					cause: error,
-				});
-			} else if (!shouldPass && !error) {
-				throw new Error("Expected invalid JSON, but parsing succeeded");
-			}
-
-			// If we expected a pass, confirm the parsed object matches JSON.parse
-			if (shouldPass) {
-				const object2 = JSON.parse(json);
-				assert.deepStrictEqual(object, object2);
-			}
-		});
+		cases.push([path.basename(entry), await readFile(entry, "utf8")]);
 	}
 
-	for (const json of ["0", "-0", " 0 ", "-1"]) {
-		test(`Lonely number ${JSON.stringify(json)}`, async () => {
-			assert.strictEqual(await parseWholeJson(json), JSON.parse(json));
-		});
-	}
-
-	const numbers = [
-		"0",
-		"-0",
-		"12",
-		"-12",
-		"0.5",
-		"-0.5",
-		"10.25",
-		"1e5",
-		"1E5",
-		"1e+5",
-		"1e-5",
-		"0e0",
-		"1.5e10",
-		"-1.5E-10",
-		"123456789012345678901234567890",
-		"1e400",
-		"-1e400",
-		"1e-400",
+	// Invalid JSON inside objects/arrays, where JSON.parse fails and the parser falls back to character by character parsing to get the error message
+	const invalid = [
+		"[1, 2}",
+		'{"a": [1, 2}',
+		"[1 2]",
+		'{"a" 1}',
+		'{"a": 1,}',
+		"[1,]",
+		"[[[]]",
+		'{"a": {"b": tru}}',
+		'["abc',
+		'[1, "a\\qb"]',
+		'{"a": "\u0001"}',
+		"[] ]",
+		'{"a": [1, {"b": 2]}]',
+		'[{"a": 1}, {"a": 2}, {"a": 3,}]',
 	];
-	for (const number of numbers) {
-		for (const json of [number, `[${number}]`, `{"a":${number}}`]) {
-			test(`Number ${json}`, async () => {
-				assert.deepStrictEqual(await parseWholeJson(json), JSON.parse(json));
-			});
-
-			test(`Number ${json}, one character per chunk`, async () => {
-				const stream = new ReadableStream({
-					start(controller) {
-						for (const char of json) {
-							controller.enqueue(char);
-						}
-						controller.close();
-					},
-				}).pipeThrough(new JSONParseStream(["$"]));
-				const chunks = await Array.fromAsync(stream);
-				assert.deepStrictEqual(chunks, [{ key: "$", value: JSON.parse(json) }]);
-			});
-		}
+	for (const json of invalid) {
+		cases.push([json, json]);
 	}
 
-	// Error position should point at the first character that makes the number invalid
-	const invalidNumbers = {
-		"[1.2.3]": 4,
-		"[1.]": 3,
-		"[1.e5]": 3,
-		"[-]": 2,
-		"[-a]": 2,
-		"[1e]": 3,
-		"[1e+]": 4,
-		"[1e5e5]": 4,
-		"[1+2]": 2,
-		"[1-2]": 4, // 1 and -2 are both valid numbers, so this is a parser error at the end of the second number
-
-		"[01]": 1,
-		"[.5]": 1,
-	};
-	for (const [json, position] of Object.entries(invalidNumbers)) {
-		test(`Invalid number ${json} errors at position ${position}`, async () => {
-			let error;
-			try {
-				await parseWholeJson(json);
-			} catch (error2) {
-				error = error2;
+	for (const [name, json] of cases) {
+		test(name, async () => {
+			const expected = await getResult(json, "character by character");
+			assert.deepStrictEqual(await getResult(json, "whole values"), expected);
+			if (json.length < 10_000) {
+				assert.deepStrictEqual(
+					await getResult(json, "whole values", 1),
+					expected,
+				);
 			}
-			assert.instanceOf(error, Error);
-			assert.include((error as Error).message, `at position ${position} `);
 		});
 	}
-
-	test("Lonely minus sign is an error", async () => {
-		let error;
-		try {
-			await parseWholeJson("-");
-		} catch (error2) {
-			error = error2;
-		}
-		assert.instanceOf(error, Error);
-	});
-
-	for (const escape of [
-		"\\u12zz",
-		"\\u0x12",
-		"\\u-123",
-		"\\u+123",
-		"\\u 123",
-	]) {
-		test(`Invalid unicode escape ${JSON.stringify(escape)} is an error`, async () => {
-			let error;
-			try {
-				await parseWholeJson(`["${escape}"]`);
-			} catch (error2) {
-				error = error2;
-			}
-			assert.instanceOf(error, Error);
-		});
-	}
-
-	test("Unicode escapes are case insensitive", async () => {
-		const json = '["\\u00aB\\u00Cd"]';
-		assert.deepStrictEqual(await parseWholeJson(json), JSON.parse(json));
-	});
-
-	for (const json of [
-		'["\\uD834\\uDD1E"]', // Valid surrogate pair
-		'["\\uD800abc"]', // Lone high surrogate followed by text
-		'["\\uD800\\n"]', // Lone high surrogate followed by another escape
-		'["\\uD800"]', // Lone high surrogate at end of string
-		'["\\uD800", "\\uDC00"]', // Lone surrogates in separate strings
-		'["\\uD800\\uD800\\uDC00"]', // Two high surrogates then a low surrogate
-		'["\\uDC00\\uD800"]', // Surrogates in reverse order
-		'{"\\uD800": "\\uDC00"}', // Lone surrogates in key and value
-	]) {
-		test(`Surrogates ${json}`, async () => {
-			assert.deepStrictEqual(await parseWholeJson(json), JSON.parse(json));
-		});
-	}
-
-	const strings = [
-		'""',
-		'"abc"',
-		'"a\\"b\\\\c\\/d\\be\\ff\\ng\\rh\\ti"',
-		'"\\u00e9 and é and \\uD834\\uDD1E and 𝄞"',
-		'["abc", "", "def", {"key with spaces": "value \\" with quote"}]',
-		JSON.stringify({ long: "x".repeat(1000), escaped: "\n".repeat(100) }),
-	];
-	for (const json of strings) {
-		for (const chunkSize of [1, 2, 3, 7]) {
-			test(`Strings ${json.slice(0, 40)}, ${chunkSize} characters per chunk`, async () => {
-				const stream = new ReadableStream({
-					start(controller) {
-						for (let i = 0; i < json.length; i += chunkSize) {
-							controller.enqueue(json.slice(i, i + chunkSize));
-						}
-						controller.close();
-					},
-				}).pipeThrough(new JSONParseStream(["$"]));
-				const chunks = await Array.fromAsync(stream);
-				assert.deepStrictEqual(chunks, [{ key: "$", value: JSON.parse(json) }]);
-			});
-		}
-	}
-
-	// Error position should point at the control character
-	const invalidStrings = {
-		'["\n"]': 2,
-		'["abc\tdef"]': 5,
-		'["abc\\n\u0000"]': 7,
-		'["ab\u0001c\u0002"]': 4,
-	};
-	for (const [json, position] of Object.entries(invalidStrings)) {
-		test(`Invalid string ${JSON.stringify(json)} errors at position ${position}`, async () => {
-			let error;
-			try {
-				await parseWholeJson(json);
-			} catch (error2) {
-				error = error2;
-			}
-			assert.instanceOf(error, Error);
-			assert.include((error as Error).message, `at position ${position} `);
-		});
-	}
-
-	test("Unterminated string reports unexpected end of input", async () => {
-		let error;
-		try {
-			await parseWholeJson('"abc');
-		} catch (error2) {
-			error = error2;
-		}
-		assert.instanceOf(error, Error);
-		assert.include((error as Error).message, "Unexpected end of input");
-	});
 });
 
 describe("Streaming", () => {
@@ -312,6 +394,9 @@ describe("Streaming", () => {
 
 		// Monkey patch to track the size of the stack
 		const monkeyPatch = (stream: JSONParseStream<any, any>) => {
+			// Parse everything character by character, otherwise the stack is often empty because entire objects are captured and parsed by JSON.parse all at once
+			stream._parser.parseWholeValue = undefined;
+
 			const prevOnValue = stream._parser.onValue;
 			stream._parser.onValue = (...params) => {
 				// This is not a very accurate way to get stack size, but works enough for these purposes.

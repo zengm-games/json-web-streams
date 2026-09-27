@@ -75,7 +75,7 @@ bench(
 	benchOptions,
 );
 
-// Simpler case than with JSONStreamRaw, ideally should at least be almost as fast
+// Simpler case than with JSONStreamRaw, now this is even faster than the JSONStreamRaw version
 bench(
 	"JSONParseStream - one JSONPath",
 	async () => {
@@ -89,7 +89,7 @@ bench(
 	benchOptions,
 );
 
-// Equivalent functionality as the JSONStreamRaw example, ideally should at least be almost as fast
+// Equivalent functionality as the JSONStreamRaw example, now this has similar performance as the "one JSONPath" case
 bench(
 	"JSONParseStream - many JSONPaths",
 	async () => {

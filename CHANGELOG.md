@@ -1,6 +1,6 @@
 # Dev
 
-- Performance improvements, around 20% faster overall, and up to 10x faster for JSON containing long strings
+- Performance improvements, around 3x faster for typical usage.
 
 - More informative error messages for invalid numbers, pointing to the specific character that made the number invalid
 
