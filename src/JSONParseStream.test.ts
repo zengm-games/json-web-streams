@@ -181,6 +181,51 @@ describe("Parsing", async () => {
 		});
 	}
 
+	const strings = [
+		'""',
+		'"abc"',
+		'"a\\"b\\\\c\\/d\\be\\ff\\ng\\rh\\ti"',
+		'"\\u00e9 and é and \\uD834\\uDD1E and 𝄞"',
+		'["abc", "", "def", {"key with spaces": "value \\" with quote"}]',
+		JSON.stringify({ long: "x".repeat(1000), escaped: "\n".repeat(100) }),
+	];
+	for (const json of strings) {
+		for (const chunkSize of [1, 2, 3, 7]) {
+			test(`Strings ${json.slice(0, 40)}, ${chunkSize} characters per chunk`, async () => {
+				const stream = new ReadableStream({
+					start(controller) {
+						for (let i = 0; i < json.length; i += chunkSize) {
+							controller.enqueue(json.slice(i, i + chunkSize));
+						}
+						controller.close();
+					},
+				}).pipeThrough(new JSONParseStream(["$"]));
+				const chunks = await Array.fromAsync(stream);
+				assert.deepStrictEqual(chunks, [{ key: "$", value: JSON.parse(json) }]);
+			});
+		}
+	}
+
+	// Error position should point at the control character
+	const invalidStrings = {
+		'["\n"]': 2,
+		'["abc\tdef"]': 5,
+		'["abc\\n\u0000"]': 7,
+		'["ab\u0001c\u0002"]': 4,
+	};
+	for (const [json, position] of Object.entries(invalidStrings)) {
+		test(`Invalid string ${JSON.stringify(json)} errors at position ${position}`, async () => {
+			let error;
+			try {
+				await parseWholeJson(json);
+			} catch (error2) {
+				error = error2;
+			}
+			assert.instanceOf(error, Error);
+			assert.include((error as Error).message, `at position ${position} `);
+		});
+	}
+
 	test("Unterminated string reports unexpected end of input", async () => {
 		let error;
 		try {

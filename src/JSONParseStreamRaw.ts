@@ -58,7 +58,8 @@ export type Stack = {
 type OnPopPush = (stackLength: number) => void;
 type OnValue = (value: Value) => void;
 
-const WHITESPACE = new Set([" ", "\t", "\n", "\r"]);
+const isWhitespace = (n: string) =>
+	n === " " || n === "\n" || n === "\r" || n === "\t";
 
 export class JSONParseStreamRaw {
 	tokenizerState: TokenizerState = "START";
@@ -124,7 +125,7 @@ export class JSONParseStreamRaw {
 				!this.multi &&
 				this.stack.length === 0 &&
 				this.seenRootObject &&
-				!WHITESPACE.has(n)
+				!isWhitespace(n)
 			) {
 				return this.charError(n, i);
 			}
@@ -161,7 +162,7 @@ export class JSONParseStreamRaw {
 				} else if (n >= "1" && n <= "9") {
 					this.string = n;
 					this.tokenizerState = "NUMBER";
-				} else if (WHITESPACE.has(n)) {
+				} else if (isWhitespace(n)) {
 					// Ignore whitespace
 				} else if (n === "␞" && this.multi && this.stack.length === 0) {
 					// Ignore json-seq separator in multi mode
@@ -176,13 +177,24 @@ export class JSONParseStreamRaw {
 				} else if (n === "\\") {
 					this.tokenizerState = "STRING2";
 				} else {
-					// Check for control characters that are not valid inside JSON strings
-					const code = n.charCodeAt(0);
-					if (code <= 0x001f) {
-						this.charError(n, i);
+					// Scan ahead to the next character that needs special handling, so the whole run of normal characters can be appended at once rather than one at a time
+					let j = i;
+					for (; j < l; j++) {
+						const code = text.charCodeAt(j);
+						if (code === 0x22 || code === 0x5c) {
+							// " or \
+							break;
+						}
+						if (code <= 0x1f) {
+							// Control characters are not valid inside JSON strings
+							return this.charError(text[j]!, j);
+						}
 					}
 
-					this.string += n;
+					this.string += text.slice(i, j);
+
+					// Continue the main loop from the " or \ (or the end of this chunk)
+					i = j - 1;
 				}
 			} else if (this.tokenizerState === "STRING2") {
 				// After backslash
