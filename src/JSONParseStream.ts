@@ -344,9 +344,8 @@ export class JSONParseStream<
 				parser.write(chunk);
 			},
 
-			flush(controller) {
+			flush() {
 				parser.checkEnd();
-				controller.terminate();
 			},
 		});
 

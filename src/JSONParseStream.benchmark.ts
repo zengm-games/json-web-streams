@@ -65,10 +65,6 @@ bench(
 			transform(chunk) {
 				parser.write(chunk);
 			},
-
-			flush(controller) {
-				controller.terminate();
-			},
 		});
 
 		await Readable.toWeb(fs.createReadStream(filename, "utf8"))
