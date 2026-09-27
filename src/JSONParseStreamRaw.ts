@@ -551,8 +551,15 @@ export class JSONParseStreamRaw {
 		this.position += text.length;
 	}
 
-	push() {
+	// Start a new object/array, and only then call onPush, so the callback can see the mode of the new object/array
+	push(mode: Mode, value: object) {
 		this.stack.push({ value: this.value, key: this.key, mode: this.mode });
+		if (this.value) {
+			this.value[this.key!] = value;
+		}
+		this.value = value;
+		this.mode = mode;
+		this.key = mode === "ARRAY" ? 0 : undefined;
 		this.onPush?.(this.stack.length);
 	}
 
@@ -569,11 +576,10 @@ export class JSONParseStreamRaw {
 		}
 	}
 
-	setKey(key: number | string | undefined) {
+	// Set a new key in an object
+	setKey(key: string) {
 		this.key = key;
-		if (this.onKey && typeof key === "string" && this.mode === "OBJECT") {
-			this.onKey(this.stack.length);
-		}
+		this.onKey?.(this.stack.length);
 	}
 
 	emit(value: Value) {
@@ -610,24 +616,10 @@ export class JSONParseStreamRaw {
 				}
 				this.emit(value);
 			} else if (token === "LEFT_BRACE") {
-				this.push();
-				if (this.value) {
-					this.value = this.value[this.key!] = {};
-				} else {
-					this.value = {};
-				}
-				this.setKey(undefined);
+				this.push("OBJECT", {});
 				this.state = "KEY";
-				this.mode = "OBJECT";
 			} else if (token === "LEFT_BRACKET") {
-				this.push();
-				if (this.value) {
-					this.value = this.value[this.key!] = [];
-				} else {
-					this.value = [];
-				}
-				this.setKey(0);
-				this.mode = "ARRAY";
+				this.push("ARRAY", []);
 				this.state = "VALUE";
 			} else if (token === "RIGHT_BRACE") {
 				if (this.mode === "OBJECT" && this.state !== "VALUE_AFTER_COMMA") {

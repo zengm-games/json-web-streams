@@ -6,48 +6,18 @@ import {
 	type PathArray,
 } from "./jsonPathToPathArray.ts";
 
-/*const stackToPathComponent = (
-	stackComponent: Stack[number],
-): PathArray[number] => {
-	if (stackComponent.mode === "OBJECT" && stackComponent.key !== undefined) {
-		// stackComponent.key is number | string, but when mode is OBJECT it is always a string, number is for ARRAY
-		const value = stackComponent.key as string;
-		return { type: "key", value };
-	}
-	if (stackComponent.mode === "ARRAY") {
-		return { type: "wildcard" };
-	}
-
-	throw new Error(`Unexpected mode "${stackComponent.mode}"`);
-};
-
-const stackToPathArray = (stack: Stack): PathArray => {
-	return stack.slice(1).map(stackToPathComponent);
-};*/
-
-// x - from JSONPath query
-// y - from parsing JSON data
-const isEqual = (x: PathArray[number], y: Stack[number] | undefined) => {
-	if (!y) {
-		return false;
-	}
-
+// Does a component of a JSONPath query match a component of the path to the current value in the JSON being parsed?
+const isEqual = (
+	x: PathArray[number],
+	y: Pick<Stack[number], "key" | "mode">,
+) => {
 	if (x.type === "wildcard") {
-		if (y.mode === "ARRAY") {
-			// We're looking for wildcard and found array - match!
-			return true;
-		} else if (y.mode === "OBJECT") {
-			// Object values are fine for wildcard too
-			return true;
-		}
-	} else {
-		// x.type is key, so we need to match that key exacty in the stack
-		if (y.mode === "OBJECT" && x.value === y.key) {
-			return true;
-		}
+		// Wildcard matches every value in an array or object
+		return y.mode === "ARRAY" || y.mode === "OBJECT";
 	}
 
-	return false;
+	// Key needs to match exactly
+	return y.mode === "OBJECT" && x.value === y.key;
 };
 
 type JSONParseStreamOutput<T> = T extends {
@@ -82,12 +52,8 @@ export class JSONParseStream<
 	) {
 		let parser: JSONParseStreamRaw;
 
-		let minPathArrayLength = Infinity;
-		let maxPathArrayLength = -Infinity;
-
 		type JSONPathInfo = {
 			key: Key | undefined;
-			matches: "yes" | "noBeforeEnd" | "noAtEnd" | "unknown"; // undefined means unknown if it matches or not, stack length is not long enough
 			path: JSONPath;
 			pathArray: PathArray;
 			validate: StandardSchemaV1["~standard"]["validate"] | undefined;
@@ -118,19 +84,8 @@ export class JSONParseStream<
 				}
 			}
 
-			// Empty query starts out matching, everything else requires something in the stack
-			const matches = pathArray.length === 0 ? "yes" : "unknown";
-
-			if (pathArray.length > maxPathArrayLength) {
-				maxPathArrayLength = pathArray.length;
-			}
-			if (pathArray.length < minPathArrayLength) {
-				minPathArrayLength = pathArray.length;
-			}
-
 			return {
 				key,
-				matches,
 				path,
 				pathArray,
 				validate: schema?.["~standard"].validate,
@@ -138,57 +93,54 @@ export class JSONParseStream<
 			};
 		});
 
-		const jsonPathInfosThatMatch = new Set<JSONPathInfo>(
-			jsonPathInfos.filter((info) => info.matches === "yes"),
-		);
+		// levels[depth] tracks the JSONPath queries that match the path to the current value at that depth (depth being the number of objects/arrays it's inside of). As the parser enters/leaves objects/arrays and sees new object keys, levels is updated by checking just one component of each query, rather than the entire query.
+		type Level = {
+			// Queries where the first `depth` components match the path to the current value
+			jsonPathInfos: JSONPathInfo[];
 
-		const updateMatches = (type: "key" | "push") => {
-			for (const info of jsonPathInfos) {
-				const pathArray = info.pathArray;
-				// Need to do this here rather than in onPush because the value matters too
-				if (
-					((info.matches === "unknown" && type === "push") ||
-						(info.matches !== "unknown" &&
-							info.matches !== "noBeforeEnd" &&
-							type === "key")) &&
-					parser.stack.length === pathArray.length
-				) {
-					//console.log('check matches', type, info.path, [...parser.stack, { key: parser.key, mode: parser.mode, value: parser.value }])
-					// We have just added enough to the stack to compare with pathArray, so let's do it and save the result
-					let pathMatches: (typeof info)["matches"] = "yes";
-					for (let j = 0; j < pathArray.length; j++) {
-						let stackComponent = parser.stack[j + 1];
-						if (!stackComponent) {
-							if (type === "key") {
-								// When setting the key, it's in the current state of the parser, not in the stack
-								stackComponent = parser;
-							} else {
-								// Can only match if the current (and final) pathArray component is a wildcard, because that means we're currently in an array/object so anything inside that will match
-								if (pathArray[j]!.type === "wildcard") {
-									pathMatches = "yes";
-									break;
-								}
-							}
-						}
-						if (!isEqual(pathArray[j]!, stackComponent)) {
-							if (j < pathArray.length - 1) {
-								// Match failed before the last component of pathArray, meaning that it will take a "push" (after a pop) to make this match, and more "key" ones we receive cannot make it match
-								pathMatches = "noBeforeEnd";
-							} else {
-								pathMatches = "noAtEnd";
-							}
-							break;
-						}
-					}
-					info.matches = pathMatches;
-					if (pathMatches === "yes") {
-						jsonPathInfosThatMatch.add(info);
-					} else {
-						jsonPathInfosThatMatch.delete(info);
-					}
-					//console.log('set matches', type, info.path, info.matches)
-				}
-			}
+			// Some query matches the current value, meaning it should be emitted
+			matchesHere: boolean;
+
+			// Some query matches a value containing the current value, so the current value needs to be kept in memory until that is emitted
+			matchesAbove: boolean;
+
+			// Some query could match something inside the current value (if it is an object/array)
+			matchesBelow: boolean;
+		};
+
+		const makeLevel = (
+			jsonPathInfos: JSONPathInfo[],
+			depth: number,
+			matchesAbove: boolean,
+		): Level => {
+			return {
+				jsonPathInfos,
+				matchesHere: jsonPathInfos.some(
+					(info) => info.pathArray.length === depth,
+				),
+				matchesAbove,
+				matchesBelow: jsonPathInfos.some(
+					(info) => info.pathArray.length > depth,
+				),
+			};
+		};
+
+		// At the root, all queries match so far
+		const levels = [makeLevel(jsonPathInfos, 0, false)];
+
+		// Called when entering an object/array or seeing a new object key, to find which queries from the parent level also match the last component of the current path
+		const updateLevel = (depth: number) => {
+			const parent = levels[depth - 1]!;
+			const jsonPathInfos = parent.jsonPathInfos.filter(
+				(info) =>
+					info.pathArray.length >= depth &&
+					isEqual(info.pathArray[depth - 1]!, parser),
+			);
+			levels[depth] = makeLevel(
+				jsonPathInfos,
+				depth,
+				parent.matchesAbove || parent.matchesHere,
+			);
 		};
 
 		super({
@@ -197,89 +149,29 @@ export class JSONParseStream<
 					multi: options?.multi,
 
 					// An object/array can be parsed all at once if no JSONPath query could match anything inside it
-					parseWholeValue: () => {
-						const depth = parser.stack.length;
-						if (depth >= maxPathArrayLength) {
-							return true;
-						}
+					parseWholeValue: () => !levels[parser.stack.length]!.matchesBelow,
 
-						for (const { pathArray } of jsonPathInfos) {
-							if (pathArray.length <= depth) {
-								continue;
-							}
-
-							// Could match something inside this object/array, if the path so far matches
-							let prefixMatches = true;
-							for (let j = 0; j < depth; j++) {
-								if (!isEqual(pathArray[j]!, parser.stack[j + 1] ?? parser)) {
-									prefixMatches = false;
-									break;
-								}
-							}
-							if (prefixMatches) {
-								return false;
-							}
-						}
-
-						return true;
+					onKey: updateLevel,
+					onPush: updateLevel,
+					onPop: (depth) => {
+						levels.length = depth + 1;
 					},
 
-					// When we receive a new object key, that could make a path match if that now matches the last component of pathArray
-					onKey: (stackLength) => {
-						if (
-							stackLength <= maxPathArrayLength &&
-							stackLength >= minPathArrayLength
-						) {
-							//console.log('onKey', [...parser.stack, { key: parser.key, mode: parser.mode, value: parser.value }]);
-							updateMatches("key");
-						}
-					},
-
-					// Possibly we have removed enough from the stack that we can now match if something is pushed to stack
-					onPop: (stackLength) => {
-						if (
-							stackLength < maxPathArrayLength &&
-							stackLength >= minPathArrayLength - 1
-						) {
-							//console.log('onPop', [...parser.stack, { key: parser.key, mode: parser.mode, value: parser.value }]);
-							for (const info of jsonPathInfos) {
-								if (
-									info.matches !== "unknown" &&
-									stackLength < info.pathArray.length
-								) {
-									info.matches = "unknown";
-									jsonPathInfosThatMatch.delete(info);
-									//console.log('reset matches', info.path);
-								}
-							}
-						}
-					},
-
-					// Possibly we can now match
-					onPush: (stackLength) => {
-						if (
-							stackLength <= maxPathArrayLength &&
-							stackLength >= minPathArrayLength
-						) {
-							//console.log('onPush', [...parser.stack, { key: parser.key, mode: parser.mode, value: parser.value }]);
-							updateMatches("push");
-						}
-					},
 					onValue: (value) => {
-						//console.log('onValue', value)
-						// console.log("path", path);
-						// console.log("stack", stack);
+						const depth = parser.stack.length;
+						const level = levels[depth]!;
 
-						let keep = false;
-						for (const {
-							key,
-							path,
-							pathArray,
-							validate,
-							wildcardIndexes,
-						} of jsonPathInfosThatMatch) {
-							if (parser.stack.length === pathArray.length) {
-								// Exact match of pathArray - emit record, and we don't need to keep it any more for this pathArray
+						if (level.matchesHere) {
+							for (const {
+								key,
+								path,
+								pathArray,
+								validate,
+								wildcardIndexes,
+							} of level.jsonPathInfos) {
+								if (pathArray.length !== depth) {
+									continue;
+								}
 
 								let valueToEmit;
 								if (validate) {
@@ -329,14 +221,11 @@ export class JSONParseStream<
 										value: valueToEmit,
 									} as any);
 								}
-							} else {
-								// Matches pathArray, but is nested deeper - still building the record to emit later
-								keep = true;
 							}
 						}
-						// console.log("Keep?", keep, "\n");
 
-						if (keep) {
+						if (level.matchesAbove) {
+							// Still building a larger value to emit later, so we need to keep this
 							return;
 						}
 
