@@ -20,7 +20,7 @@ const CUMULATIVE_OBJECTS = new Set([
 	"version",
 ]);
 
-// This is similar to what zengm does now, so it would be nice to be able to match this performance with JSONParseStream
+// This is similar to what zengm used to do, so it would be nice to be able to match this performance with JSONParseStream
 bench(
 	"JSONParseStreamRaw",
 	async () => {
@@ -75,7 +75,7 @@ bench(
 	benchOptions,
 );
 
-// Simpler case than with JSONStreamRaw, ideally should be faster
+// Simpler case than with JSONStreamRaw, ideally should at least be almost as fast
 bench(
 	"JSONParseStream - one JSONPath",
 	async () => {
@@ -89,7 +89,7 @@ bench(
 	benchOptions,
 );
 
-// Equivalent functionality as the JSONStreamRaw example, ideally should be just as fast or faster
+// Equivalent functionality as the JSONStreamRaw example, ideally should at least be almost as fast
 bench(
 	"JSONParseStream - many JSONPaths",
 	async () => {
