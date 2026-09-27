@@ -63,6 +63,76 @@ describe("Parsing", async () => {
 		});
 	}
 
+	const numbers = [
+		"0",
+		"-0",
+		"12",
+		"-12",
+		"0.5",
+		"-0.5",
+		"10.25",
+		"1e5",
+		"1E5",
+		"1e+5",
+		"1e-5",
+		"0e0",
+		"1.5e10",
+		"-1.5E-10",
+		"123456789012345678901234567890",
+		"1e400",
+		"-1e400",
+		"1e-400",
+	];
+	for (const number of numbers) {
+		for (const json of [number, `[${number}]`, `{"a":${number}}`]) {
+			test(`Number ${json}`, async () => {
+				assert.deepStrictEqual(await parseWholeJson(json), JSON.parse(json));
+			});
+
+			test(`Number ${json}, one character per chunk`, async () => {
+				const stream = new ReadableStream({
+					start(controller) {
+						for (const char of json) {
+							controller.enqueue(char);
+						}
+						controller.close();
+					},
+				}).pipeThrough(new JSONParseStream(["$"]));
+				const chunks = await Array.fromAsync(stream);
+				assert.deepStrictEqual(chunks, [{ key: "$", value: JSON.parse(json) }]);
+			});
+		}
+	}
+
+	// Error position should point at the first character that makes the number invalid
+	const invalidNumbers = {
+		"[1.2.3]": 4,
+		"[1.]": 3,
+		"[1.e5]": 3,
+		"[-]": 2,
+		"[-a]": 2,
+		"[1e]": 3,
+		"[1e+]": 4,
+		"[1e5e5]": 4,
+		"[1+2]": 2,
+		"[1-2]": 4, // 1 and -2 are both valid numbers, so this is a parser error at the end of the second number
+
+		"[01]": 1,
+		"[.5]": 1,
+	};
+	for (const [json, position] of Object.entries(invalidNumbers)) {
+		test(`Invalid number ${json} errors at position ${position}`, async () => {
+			let error;
+			try {
+				await parseWholeJson(json);
+			} catch (error2) {
+				error = error2;
+			}
+			assert.instanceOf(error, Error);
+			assert.include((error as Error).message, `at position ${position} `);
+		});
+	}
+
 	test("Lonely minus sign is an error", async () => {
 		let error;
 		try {

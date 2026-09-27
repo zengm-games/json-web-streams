@@ -10,7 +10,7 @@ import type { JSONPath } from "./jsonPathToPathArray.ts";
 const filename = path.join(__dirname, "test/benchmark.json");
 
 const benchOptions = {
-	iterations: 1000,
+	iterations: 100,
 } as const;
 
 const CUMULATIVE_OBJECTS = new Set([

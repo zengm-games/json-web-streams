@@ -27,9 +27,14 @@ type TokenizerState =
 	| "NULL1"
 	| "NULL2"
 	| "NULL3"
-	| "NUMBER-" // Number starting with negative sign
-	| "NUMBER0" // Number with a leading 0 (either no negative sign, or after negative sign)
-	| "NUMBER" // Any other number
+	| "NUMBER-" // After negative sign, needs a digit
+	| "NUMBER0" // After a leading 0 (either no negative sign, or after negative sign), can't be followed by another digit
+	| "NUMBER" // Integer digits after a leading 1-9
+	| "NUMBER_DOT" // After decimal point, needs a digit
+	| "NUMBER_FRACTION" // Digits after decimal point
+	| "NUMBER_E" // After e/E, needs a sign or digit
+	| "NUMBER_E_SIGN" // After sign of exponent, needs a digit
+	| "NUMBER_EXPONENT" // Digits of exponent
 	| "STRING1"
 	| "STRING2"
 	| "STRING3"
@@ -240,49 +245,91 @@ export class JSONParseStreamRaw {
 					this.string += String.fromCharCode(intVal);
 					this.tokenizerState = "STRING1";
 				}
-			} else if (
-				this.tokenizerState === "NUMBER" ||
-				this.tokenizerState === "NUMBER-" ||
-				this.tokenizerState === "NUMBER0"
-			) {
-				if (this.tokenizerState === "NUMBER0" && n >= "0" && n <= "9") {
-					// The error is the previous characte,r which must be a leading 0
-					return this.charError("0", i - 1);
+			} else if (this.tokenizerState === "NUMBER") {
+				if (n >= "0" && n <= "9") {
+					this.string += n;
+				} else if (n === ".") {
+					this.string += n;
+					this.tokenizerState = "NUMBER_DOT";
+				} else if (n === "e" || n === "E") {
+					this.string += n;
+					this.tokenizerState = "NUMBER_E";
+				} else {
+					this.endNumber(i);
+
+					// Process this character (n) again, since it's not part of the number
+					i--;
 				}
+			} else if (this.tokenizerState === "NUMBER_FRACTION") {
+				if (n >= "0" && n <= "9") {
+					this.string += n;
+				} else if (n === "e" || n === "E") {
+					this.string += n;
+					this.tokenizerState = "NUMBER_E";
+				} else {
+					this.endNumber(i);
 
-				switch (n) {
-					case "0":
-						this.string += n;
-						this.tokenizerState =
-							this.tokenizerState === "NUMBER-" ? "NUMBER0" : "NUMBER";
-						break;
-					case "1":
-					case "2":
-					case "3":
-					case "4":
-					case "5":
-					case "6":
-					case "7":
-					case "8":
-					case "9":
-					case ".":
-					case "e":
-					case "E":
-					case "+":
-					case "-":
-						this.string += n;
-						this.tokenizerState = "NUMBER";
-						break;
-					default: {
-						this.tokenizerState = "START";
-						this.numberReviver(this.string!, i);
+					// Process this character (n) again, since it's not part of the number
+					i--;
+				}
+			} else if (this.tokenizerState === "NUMBER0") {
+				if (n >= "0" && n <= "9") {
+					// The error is the previous character, which must be a leading 0
+					return this.charError("0", i - 1);
+				} else if (n === ".") {
+					this.string += n;
+					this.tokenizerState = "NUMBER_DOT";
+				} else if (n === "e" || n === "E") {
+					this.string += n;
+					this.tokenizerState = "NUMBER_E";
+				} else {
+					this.endNumber(i);
 
-						this.string = undefined;
+					// Process this character (n) again, since it's not part of the number
+					i--;
+				}
+			} else if (this.tokenizerState === "NUMBER-") {
+				if (n === "0") {
+					this.string += n;
+					this.tokenizerState = "NUMBER0";
+				} else if (n >= "1" && n <= "9") {
+					this.string += n;
+					this.tokenizerState = "NUMBER";
+				} else {
+					return this.charError(n, i);
+				}
+			} else if (this.tokenizerState === "NUMBER_DOT") {
+				if (n >= "0" && n <= "9") {
+					this.string += n;
+					this.tokenizerState = "NUMBER_FRACTION";
+				} else {
+					return this.charError(n, i);
+				}
+			} else if (this.tokenizerState === "NUMBER_E") {
+				if (n >= "0" && n <= "9") {
+					this.string += n;
+					this.tokenizerState = "NUMBER_EXPONENT";
+				} else if (n === "+" || n === "-") {
+					this.string += n;
+					this.tokenizerState = "NUMBER_E_SIGN";
+				} else {
+					return this.charError(n, i);
+				}
+			} else if (this.tokenizerState === "NUMBER_E_SIGN") {
+				if (n >= "0" && n <= "9") {
+					this.string += n;
+					this.tokenizerState = "NUMBER_EXPONENT";
+				} else {
+					return this.charError(n, i);
+				}
+			} else if (this.tokenizerState === "NUMBER_EXPONENT") {
+				if (n >= "0" && n <= "9") {
+					this.string += n;
+				} else {
+					this.endNumber(i);
 
-						// Process this character (n) again, to get the actual value
-						i--;
-						break;
-					}
+					// Process this character (n) again, since it's not part of the number
+					i--;
 				}
 			} else if (this.tokenizerState === "TRUE1") {
 				if (n === "r") {
@@ -483,13 +530,11 @@ export class JSONParseStreamRaw {
 		}
 	}
 
-	numberReviver(text: string, i: number) {
-		// JSON.parse handles various number formatting quirks for us, so why not!
-		const number = JSON.parse(text);
-
-		if (Number.isNaN(number)) {
-			return this.charError(text, i);
-		}
+	endNumber(i: number) {
+		// The tokenizer already validated this against the JSON number grammar, and for valid JSON numbers Number gives the same result as JSON.parse
+		const number = Number(this.string);
+		this.string = undefined;
+		this.tokenizerState = "START";
 
 		this.onToken("NUMBER", number, i);
 	}
@@ -503,18 +548,15 @@ export class JSONParseStreamRaw {
 
 		// Check for lonely number - other vaues have a defined end (like null is always 4 letters, so we can emit it after the 4th letter), but for lonely numbers there is no way to tell when the end is
 		if (
-			this.state === "VALUE" &&
-			(this.tokenizerState === "NUMBER" ||
-				this.tokenizerState === "NUMBER0" ||
-				this.tokenizerState === "NUMBER-") &&
-			this.string !== undefined
+			this.tokenizerState === "NUMBER" ||
+			this.tokenizerState === "NUMBER0" ||
+			this.tokenizerState === "NUMBER_FRACTION" ||
+			this.tokenizerState === "NUMBER_EXPONENT"
 		) {
-			this.numberReviver(this.string!, this.position - 1);
-			this.string = undefined;
-			this.tokenizerState = "START";
+			this.endNumber(this.position - 1);
 		}
 
-		// Input ended in the middle of a string or literal like true/false/null
+		// Input ended in the middle of a string, an incomplete number like "1." or "-", or a literal like true/false/null
 		if (this.tokenizerState !== "START") {
 			throw new Error(
 				`Unexpected end of input at position ${this.position} in state ${this.tokenizerState}`,
