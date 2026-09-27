@@ -10,7 +10,7 @@ import type { JSONPath } from "./jsonPathToPathArray.ts";
 const filename = path.join(__dirname, "test/benchmark.json");
 
 const benchOptions = {
-	iterations: 100,
+	iterations: 20,
 } as const;
 
 const CUMULATIVE_OBJECTS = new Set([
@@ -75,7 +75,7 @@ bench(
 	benchOptions,
 );
 
-// The case with only one JSONPath is almost as fast as JSONParseStreamRaw, but of course with less functionality
+// Simpler case than with JSONStreamRaw, ideally should be faster
 bench(
 	"JSONParseStream - one JSONPath",
 	async () => {
@@ -89,7 +89,7 @@ bench(
 	benchOptions,
 );
 
-// Equivalent functionality as the JSONStreamRaw example, but much >2x slower. Could be improved by generic performance improvements? Or maybe by supporting filter expressions so we need fewer JSONPaths?
+// Equivalent functionality as the JSONStreamRaw example, ideally should be just as fast or faster
 bench(
 	"JSONParseStream - many JSONPaths",
 	async () => {

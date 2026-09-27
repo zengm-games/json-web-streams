@@ -14,6 +14,7 @@
 	},
 	"license": "Apache-2.0",
 	"author": "Jeremy Scheff <jeremy@zengm.com> (https://zengm.com/)",
+	"sideEffects": false,
 	"type": "module",
 	"main": "dist/index.js",
 	"types": "dist/index.d.ts",
@@ -21,7 +22,7 @@
 		"dist"
 	],
 	"scripts": {
-		"bench": "vitest bench",
+		"bench": "vitest bench --run",
 		"build": "tsdown --unbundle",
 		"format": "prettier --write .",
 		"lint": "npm-run-all --parallel lint:oxlint lint:tsc",
@@ -29,7 +30,7 @@
 		"lint:tsc": "tsc",
 		"prepack": "node --run build",
 		"prepare": "husky",
-		"test": "vitest"
+		"test": "vitest --run"
 	},
 	"lint-staged": {
 		"*.{js,cjs,mjs,jsx,json,scss,ts,cts,mts,tsx,md}": "prettier --write"
